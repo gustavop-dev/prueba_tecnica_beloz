@@ -1,6 +1,6 @@
 # Technical Context
 
-> Memory Bank file, refreshed in F5. Source of truth: `docs/architecture.md`, `docs/testing.md`, `docs/decisions/`, `infra/terraform/README.md`.
+> Memory Bank file, refreshed in F5. Source of truth: `docs/architecture.md`, `docs/testing.md`, `docs/adr/`, `infra/terraform/README.md`.
 
 ## Stack
 

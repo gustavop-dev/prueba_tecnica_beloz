@@ -71,7 +71,7 @@ Paying merchants (`Dr merchant_payable / Cr cash`) belongs to the real card netw
 | CACHE-1 | `CreditAccount` stores `credit_limit_minor` and `outstanding_minor` as a cache of the ledger, so a purchase is authorized without reading the whole ledger. |
 | CACHE-2 | The cache is updated in the same database transaction as the journal entry. A purchase writes the entry and increments `outstanding_minor`: both happen or neither does. |
 | CACHE-3 | PostgreSQL enforces `CHECK (0 <= outstanding_minor AND outstanding_minor <= credit_limit_minor)` as the last line of defense: debt is never negative and spending never exceeds the limit, even if a future endpoint or bug bypasses the Python validation. |
-| CACHE-4 | Operations that change `outstanding_minor` lock the credit account row (`SELECT … FOR UPDATE`) before validating, so concurrent purchases or payments are serialized and rejected cleanly instead of hitting the `CHECK`. See [invariants.md](invariants.md#concurrency-rules) and [ADR 0001](decisions/0001-pessimistic-locking.md). |
+| CACHE-4 | Operations that change `outstanding_minor` lock the credit account row (`SELECT … FOR UPDATE`) before validating, so concurrent purchases or payments are serialized and rejected cleanly instead of hitting the `CHECK`. See [invariants.md](invariants.md#concurrency-rules) and [ADR 0001](adr/0001-pessimistic-locking.md). |
 
 The `_minor` suffix means the amount is in the currency's minor unit (cents).
 

@@ -1,6 +1,6 @@
 # Architecture (Memory Bank)
 
-> Memory Bank file, refreshed in F5 against the code. Source of truth: `docs/architecture.md` and ADR 0001–0009.
+> Memory Bank file, refreshed in F5 against the code. Source of truth: `docs/architecture.md` and ADR 0001–0011 (`docs/adr/`, `infra/terraform/adr/`).
 
 ## System overview
 
