@@ -12,7 +12,7 @@
 | F2 | Flows, API, principal and ownership | ✅ Merged (#4) |
 | F3 | Concurrency and idempotency | ✅ Merged (#5) |
 | F4 | Security hardening and audit | ✅ Merged (#6) |
-| F5 | Documentation, architecture ADRs, Terraform | 🔎 In review (branch `phase/f5-docs-terraform`) |
+| F5 | Documentation, architecture ADRs, Terraform | ✅ Merged (#7) |
 
 ## Codebase counts
 
