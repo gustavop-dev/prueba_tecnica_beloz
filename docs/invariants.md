@@ -15,7 +15,7 @@ Non-negotiable properties of the system. They hold at every commit, for every cr
 
 ## Concurrency rules
 
-These rules make INV-1 and INV-5 hold under concurrent requests. The rationale is in [ADR 0001](decisions/0001-pessimistic-locking.md).
+These rules make INV-1 and INV-5 hold under concurrent requests. The rationale is in [ADR 0001](adr/0001-pessimistic-locking.md).
 
 | ID | Rule |
 | --- | --- |

@@ -6,7 +6,7 @@
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| Specs | `docs/*.md`, ADR 0001–0009 | ✅ Final |
+| Specs | `docs/*.md`, ADR 0001–0010 in `docs/adr/`, ADR 0011 in `infra/terraform/adr/` | ✅ Final |
 | F0 | Skeleton, repository, Docker, CI | ✅ Merged (#1) |
 | F1 | Money, ledger, models | ✅ Merged (#3) |
 | F2 | Flows, API, principal and ownership | ✅ Merged (#4) |

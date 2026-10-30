@@ -51,19 +51,19 @@ curl -s -X POST localhost:8000/accounts \
 
 | Concern | Mechanism |
 | --- | --- |
-| Money never appears or disappears | Double-entry ledger: every operation is a journal entry whose signed lines sum to zero; append-only and balanced-at-commit enforced by PostgreSQL triggers ([ADR 0006](docs/decisions/0006-double-entry-ledger-with-balance-cache.md)) |
-| No rounding errors | Integer cents everywhere; floats and decimals rejected at the API and forbidden in models ([ADR 0007](docs/decisions/0007-integer-cents-and-basis-points.md)) |
-| No overspending under concurrency | Pessimistic row lock on the credit account, fixed lock order, `lock_timeout`; `CHECK (0 <= debt <= limit)` as the last line of defense ([ADR 0001](docs/decisions/0001-pessimistic-locking.md), [ADR 0008](docs/decisions/0008-database-guards-as-last-line-of-defense.md)) |
-| Retries applied once | `Idempotency-Key` claimed as the first write of the transaction (`INSERT … ON CONFLICT`); concurrent duplicates wait and replay ([ADR 0002](docs/decisions/0002-idempotency-keys-and-request-fingerprint.md)) |
+| Money never appears or disappears | Double-entry ledger: every operation is a journal entry whose signed lines sum to zero; append-only and balanced-at-commit enforced by PostgreSQL triggers ([ADR 0006](docs/adr/0006-double-entry-ledger-with-balance-cache.md)) |
+| No rounding errors | Integer cents everywhere; floats and decimals rejected at the API and forbidden in models ([ADR 0007](docs/adr/0007-integer-cents-and-basis-points.md)) |
+| No overspending under concurrency | Pessimistic row lock on the credit account, fixed lock order, `lock_timeout`; `CHECK (0 <= debt <= limit)` as the last line of defense ([ADR 0001](docs/adr/0001-pessimistic-locking.md), [ADR 0008](docs/adr/0008-database-guards-as-last-line-of-defense.md)) |
+| Retries applied once | `Idempotency-Key` claimed as the first write of the transaction (`INSERT … ON CONFLICT`); concurrent duplicates wait and replay ([ADR 0002](docs/adr/0002-idempotency-keys-and-request-fingerprint.md)) |
 | Only valid state changes | Explicit state machines per entity, checked under the row lock |
 | Customers see only their own data | Owner-scoped lookups; another customer's resource answers exactly like a missing one (404) |
-| Webhook cannot be forged or replayed | HMAC-SHA256 over timestamp + raw body, ±5 minutes, idempotency inside the window ([ADR 0009](docs/decisions/0009-simulated-token-auth-and-signed-webhook.md)) |
+| Webhook cannot be forged or replayed | HMAC-SHA256 over timestamp + raw body, ±5 minutes, idempotency inside the window ([ADR 0009](docs/adr/0009-simulated-token-auth-and-signed-webhook.md)) |
 | Who did what | Append-only audit events in the same transaction as each mutation; rejected attempts of authenticated callers (business rules, wrong role, IDOR probes) audited too; unauthenticated attempts logged as security events; JSON logs with a request id |
 | Cache drift detectable | `make reconcile` recomputes balances from the ledger |
 
 ## Tests
 
-PostgreSQL only — never SQLite ([ADR 0005](docs/decisions/0005-postgresql-in-every-environment.md)). Every test names in its docstring the bug it catches and the spec rule it protects; all 35 business rules are covered.
+PostgreSQL only — never SQLite ([ADR 0005](docs/adr/0005-postgresql-in-every-environment.md)). Every test names in its docstring the bug it catches and the spec rule it protects; all 35 business rules are covered.
 
 - **Real concurrency**: threads with their own connections released together — 10 purchases racing for one limit approve exactly the possible count; purchase vs closure and repayment vs purchase always match a serial order. Run 10 times in a row without failures.
 - **Idempotency**: replays, reused keys with another body, 8 concurrent requests with one key → exactly one effect.
@@ -71,11 +71,11 @@ PostgreSQL only — never SQLite ([ADR 0005](docs/decisions/0005-postgresql-in-e
 - **Security**: permission matrix per endpoint, IDOR, webhook signature tampering and expiry.
 - **Database guards**: raw SQL that bypasses Python proves each trigger and constraint.
 
-CI runs lint and module boundaries, the suite (with the Hypothesis CI profile), `make up` + walkthrough + reconcile + tests from a clean checkout, and Terraform validation. Deployment to AWS is a separate, manual workflow (`Deploy`: staging or production) that reruns those gates, shows the Terraform plan for approval, migrates, then rolls out ([ADR 0010](docs/decisions/0010-deploy-pipeline.md)).
+CI runs lint and module boundaries, the suite (with the Hypothesis CI profile), `make up` + walkthrough + reconcile + tests from a clean checkout, and Terraform validation. Deployment to AWS is a separate, manual workflow (`Deploy`: staging or production) that reruns those gates, shows the Terraform plan for approval, migrates, then rolls out ([ADR 0010](docs/adr/0010-deploy-pipeline.md)).
 
 ## Architecture
 
-One deployable Django service — a **modular monolith** ([ADR 0003](docs/decisions/0003-modular-monolith-with-service-boundaries.md)):
+One deployable Django service — a **modular monolith** ([ADR 0003](docs/adr/0003-modular-monolith-with-service-boundaries.md)):
 
 ```
 backend/
@@ -91,7 +91,7 @@ docs/             specifications and decisions
 tasks/            implementation plan and phase contracts
 ```
 
-The six apps never import each other; the operations core calls only their `services.py`, which return immutable DTOs. `import-linter` fails the build on any violation. Cross-app references are UUIDs ([ADR 0004](docs/decisions/0004-uuid-references-without-foreign-keys.md)).
+The six apps never import each other; the operations core calls only their `services.py`, which return immutable DTOs. `import-linter` fails the build on any violation. Cross-app references are UUIDs ([ADR 0004](docs/adr/0004-uuid-references-without-foreign-keys.md)).
 
 ## Documentation
 
@@ -107,8 +107,37 @@ The six apps never import each other; the operations core calls only their `serv
 | [docs/api.md](docs/api.md) | Endpoints, bodies, error glossary |
 | [docs/testing.md](docs/testing.md) | Test conventions and mandatory suites |
 | [docs/architecture.md](docs/architecture.md) | Technical decisions and module boundaries |
-| [docs/decisions/](docs/decisions/) | ADR 0001–0010 |
-| [infra/terraform/README.md](infra/terraform/README.md) | AWS architecture, deploy pipeline and its one-time setup |
+| [docs/adr/](docs/adr/) | ADR 0001–0010, indexed with the origin of each decision |
+| [infra/terraform/README.md](infra/terraform/README.md) | AWS architecture, deploy pipeline and its one-time setup; deployment ADR in [infra/terraform/adr/](infra/terraform/adr/) |
+| [PROMPTS.md](PROMPTS.md) | The author's instructions, verbatim and in order |
+
+## Planning and technical decisions
+
+This exercise was built with an AI coding assistant. The author designed the system and made the technical decisions; the assistant wrote the specifications down, proposed options where something was open, and implemented them. The author's own messages are in [PROMPTS.md](PROMPTS.md), unedited.
+
+### How the work was planned
+
+1. **Specification before code.** Nothing was executed until the author allowed it. The author defined the system one area at a time, in a fixed order: context → technical and architecture rules → business rules → state machines → the ledger as source of truth → non-negotiable invariants → idempotency → security → audit → tests → deliverables. After each area, open questions and contradictions were resolved and the result was written to `docs/` with an ID per rule (`BR-*`, `INV-*`, `CON-*`, `IDEM-*`, `SEC-*`, `AUD-*`, `TEST-*`), so code and tests could cite them.
+2. **A phased plan with verifiable gates.** The author set the phases — F0 skeleton/Docker/CI, F1 money/ledger/models, F2 flows/API, F3 concurrency/idempotency, F4 security/audit, F5 documentation — each with acceptance criteria that can be checked by running commands, and `make up` + `make test` from a clean clone as the termination criterion. The assistant argued six adjustments (R0–R6); the author accepted them, e.g. locking and ownership from F2 rather than later, and option B for account opening. See [tasks/implementation-plan.md](tasks/implementation-plan.md).
+3. **An orchestrator and one subagent per Django app.** The author's distribution: an orchestrator (Opus, effort `xhigh`) owning the operations core, the API and the integration; one subagent per app (Opus, effort `high`) working only inside its app, from written contracts ([tasks/f1-contracts.md](tasks/f1-contracts.md) … `f4`). Each phase had its own branch and git worktree, each subagent its own worktree, and every phase ended with a review, a pull request and a stop until the author approved the merge.
+4. **After the plan**, the author requested three follow-ups and chose among the options offered: card freeze/unfreeze endpoints (#9), auditing of rejected attempts (#10) and a manual, approved deploy pipeline (#11).
+
+### Key decisions
+
+| Decision | Taken by | Where |
+| --- | --- | --- |
+| Single deployable modular monolith; six apps communicating only through service functions | Author | [ADR 0003](docs/adr/0003-modular-monolith-with-service-boundaries.md) |
+| PostgreSQL everywhere, no SQLite even in tests | Author | [ADR 0005](docs/adr/0005-postgresql-in-every-environment.md) |
+| Integer cents, floats forbidden in every layer; collateral ratio 1.0 | Author | [ADR 0007](docs/adr/0007-integer-cents-and-basis-points.md) |
+| Double-entry, append-only ledger with its postings; balance cache with a `CHECK`; `reconcile` | Author | [ADR 0006](docs/adr/0006-double-entry-ledger-with-balance-cache.md) |
+| Pessimistic locking with a fixed lock order (optimistic locking analysed and rejected for this workload) | Author | [ADR 0001](docs/adr/0001-pessimistic-locking.md) |
+| Idempotency keys with a SHA-256 request fingerprint, stored in the same transaction | Author | [ADR 0002](docs/adr/0002-idempotency-keys-and-request-fingerprint.md) |
+| Static tokens mapped to principal + role, IDOR answered with `404`, HMAC webhook with a 5-minute window, no PAN | Author | [ADR 0009](docs/adr/0009-simulated-token-auth-and-signed-webhook.md) |
+| State machines, opening via the provider's confirmation, closure rules (full refund iff debt is 0) | Author | [docs/state-machines.md](docs/state-machines.md), [docs/business-rules.md](docs/business-rules.md) |
+| Mandatory tests: real concurrency, idempotency, invalid transitions, security, Hypothesis, reconcile | Author | [docs/testing.md](docs/testing.md) |
+| Cross-app UUID references without foreign keys; basis points for the ratio; extra database guards | Assistant, approved by the author | [ADR 0004](docs/adr/0004-uuid-references-without-foreign-keys.md), [ADR 0007](docs/adr/0007-integer-cents-and-basis-points.md), [ADR 0008](docs/adr/0008-database-guards-as-last-line-of-defense.md) |
+| Deploy pipeline: manual with approval, staging + production, migrate then roll out | Author, among the assistant's options | [ADR 0010](docs/adr/0010-deploy-pipeline.md) |
+| AWS as the target; ECS Fargate, RDS PostgreSQL 18 and Secrets Manager as the services | Author (AWS); assistant, approved (services) | [ADR 0011](infra/terraform/adr/0011-aws-deployment-architecture.md) |
 
 ## Scope and assumptions
 

@@ -4,6 +4,8 @@ Infrastructure as code for running the service on AWS (ARCH-2), plus a manual, a
 
 ## Architecture
 
+Why this architecture and not EKS, App Runner, Lambda or EC2: [ADR 0011 — AWS deployment architecture](adr/0011-aws-deployment-architecture.md). The release process: [ADR 0010](../../docs/adr/0010-deploy-pipeline.md).
+
 ```mermaid
 flowchart LR
     Client -- HTTPS --> ALB[Application Load Balancer<br/>TLS 1.3/1.2, HTTP → HTTPS]
@@ -35,6 +37,7 @@ flowchart LR
 | `service.tf` | ECR (immutable tags, scan on push), CloudWatch log group, ECS cluster, API task + service with deployment circuit breaker, one-off migrate task, ALB with `/health` checks. |
 | `iam.tf` | Execution role limited to the app's secrets; task role with no permissions (the app calls no AWS API). |
 | `sql/app_role.sql` | Least-privilege database role for the API. |
+| `adr/` | Deployment decisions ([ADR 0011](adr/0011-aws-deployment-architecture.md)); the project-wide ADRs are in [docs/adr/](../../docs/adr/). |
 
 ## Security decisions
 
@@ -46,7 +49,7 @@ flowchart LR
 
 ## Deploy pipeline
 
-`.github/workflows/deploy.yml`, rationale in [ADR 0010](../../docs/decisions/0010-deploy-pipeline.md). It runs **only by hand** (Actions → Deploy → Run workflow → `staging` or `production`):
+`.github/workflows/deploy.yml`, rationale in [ADR 0010](../../docs/adr/0010-deploy-pipeline.md). It runs **only by hand** (Actions → Deploy → Run workflow → `staging` or `production`):
 
 ```mermaid
 flowchart LR
