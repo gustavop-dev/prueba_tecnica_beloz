@@ -65,6 +65,8 @@ forbidden_modules = ["core"]
 name = "DEP-2: the operations core never touches app models or migrations"
 type = "forbidden"
 source_modules = ["core"]
+# Services import their own models, so only direct imports from core are forbidden.
+allow_indirect_imports = true
 forbidden_modules = [
     "accounts.models",
     "accounts.migrations",

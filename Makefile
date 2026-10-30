@@ -20,9 +20,10 @@ lint: env ## Ruff (lint + format check) and import-linter module boundaries
 	$(COMPOSE) build app
 	$(RUN) --no-deps app sh -c "ruff check . && ruff format --check . && lint-imports"
 
-format: env ## Apply ruff formatting and safe fixes
+format: env ## Apply ruff formatting and safe fixes to the files on the host
 	$(COMPOSE) build app
-	$(RUN) --no-deps app sh -c "ruff check --fix . && ruff format ."
+	$(RUN) --no-deps --volume ./backend:/app --user "$$(id -u):$$(id -g)" app \
+		sh -c "ruff format --no-cache . && ruff check --fix --no-cache ."
 
 migrate: env ## Apply database migrations
 	$(RUN) app python manage.py migrate
