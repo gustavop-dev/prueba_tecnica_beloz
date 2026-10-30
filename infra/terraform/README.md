@@ -1,6 +1,6 @@
 # AWS infrastructure (Terraform)
 
-Infrastructure as code for running the service on AWS (ARCH-2). It is **delivered as code and validated, never applied** in this exercise: `make infra-check` runs `terraform fmt -check` and `terraform validate` in Docker, and CI runs it on every push.
+Infrastructure as code for running the service on AWS (ARCH-2), plus a manual, approved deploy pipeline. It is **delivered as code and validated, never applied** in this exercise: `make infra-check` runs `terraform fmt -check`, `terraform validate` (stack and bootstrap) and `actionlint` on the workflows in Docker, and CI runs it on every push.
 
 ## Architecture
 
@@ -44,25 +44,57 @@ flowchart LR
 - **The append-only guards hold in RDS for every role.** RDS's master user is `rds_superuser`, not a PostgreSQL superuser (`rolsuper = false`), so the `TRUNCATE` exemption of LED-4 / AUD-3 / idempotency never applies there; `UPDATE`/`DELETE` on journal, audit and idempotency rows are rejected for everyone.
 - **Migrations are not run by API tasks**: a separate task runs them before each deployment, so replicas never race on schema changes.
 
-## Deploying (outline)
+## Deploy pipeline
 
-```bash
-# 1. Infrastructure
-terraform init -backend-config="bucket=<state-bucket>" -backend-config="key=acme/terraform.tfstate"
-terraform apply -var certificate_arn=<acm-arn> -var allowed_hosts=api.example.com -var image_tag=<tag>
+`.github/workflows/deploy.yml`, rationale in [ADR 0010](../../docs/decisions/0010-deploy-pipeline.md). It runs **only by hand** (Actions → Deploy → Run workflow → `staging` or `production`):
 
-# 2. Secrets (once)
-aws secretsmanager put-secret-value --secret-id <app_secret_arns.django_secret_key> --secret-string '...'
-# ...auth_tokens, webhook_signing_secret, db_app_password
-
-# 3. Image (production target, without test tools)
-docker build --target runtime -t <ecr_repository_url>:<tag> backend && docker push <ecr_repository_url>:<tag>
-
-# 4. Schema, then the least-privilege role (first deployment only)
-aws ecs run-task --cluster <cluster_name> --task-definition <migrate_task_definition> --launch-type FARGATE ...
-psql "host=<database_address> dbname=acme user=acme_admin sslmode=require" -v app_password="'...'" -f sql/app_role.sql
+```mermaid
+flowchart LR
+    V[verify<br/>same gates as CI] --> P[plan<br/>env: &lt;env&gt;-plan<br/>read-only role]
+    P -- plan in run summary + artifact --> A{approval<br/>production only}
+    A --> D1[apply the saved plan]
+    D1 --> D2[build + push image]
+    D2 --> D3[migrate task<br/>exit code must be 0]
+    D3 --> D4[update service<br/>wait stable, check serving revision]
+    D4 --> D5[smoke test /health]
 ```
+
+- **Plan before approval**: the reviewer approves the exact plan that will be applied.
+- **Migrations first**: Terraform ignores the service's task definition, so new code serves traffic only after the migrate task succeeded. Migrations must therefore stay backward compatible with the version still running.
+- **No stored AWS keys**: each job gets short-lived OIDC credentials from a role that only that GitHub Environment of this repository can assume.
+
+| File | Content |
+| --- | --- |
+| `bootstrap/` | One-time stack (local state, applied by an administrator): state bucket (versioned, KMS-encrypted, TLS-only, S3 lock files), GitHub OIDC provider, per environment a read-only plan role, a deploy role and the workload permissions boundary. |
+| `environments/<env>.tfvars.json` | Non-secret sizing per environment (task count, database class, Multi-AZ, log retention). |
+
+### Deploy role permissions
+
+`PowerUserAccess` (no IAM, no Organizations) plus IAM limited to the stack's own roles (`<project>-<env>-*`): it can create or change them **only with the workload permissions boundary attached**, which caps any such role to pulling images, writing logs and reading the stack's secrets. The GitHub roles themselves (`github-<project>-<env>-*`) are outside that pattern, so the deploy role cannot modify itself.
+
+### One-time setup
+
+1. **Bootstrap** (administrator, from a workstation):
+
+   ```bash
+   cd infra/terraform/bootstrap && terraform init && terraform apply
+   ```
+
+2. **GitHub Environments** (Settings → Environments), each restricted to the `main` branch:
+
+   | Environment | Variables | Protection |
+   | --- | --- | --- |
+   | `staging-plan`, `production-plan` | `AWS_REGION`, `TF_STATE_BUCKET`, `AWS_PLAN_ROLE_ARN`, `CERTIFICATE_ARN`, `ALLOWED_HOSTS`, `WORKLOAD_PERMISSIONS_BOUNDARY_ARN` | `main` only |
+   | `staging` | `AWS_REGION`, `TF_STATE_BUCKET`, `AWS_DEPLOY_ROLE_ARN`, `API_BASE_URL` | `main` only |
+   | `production` | same as `staging` | `main` only + **required reviewers** |
+
+   Role ARNs, the bucket and the boundary come from the bootstrap outputs.
+
+3. **First deployment of an environment.** The first run creates the infrastructure and then **stops at the migration step on purpose**, because the new secrets have no values yet. Then:
+   - fill the secrets: `aws secretsmanager put-secret-value --secret-id <app_secret_arns.*> --secret-string '...'` for `django_secret_key`, `auth_tokens`, `webhook_signing_secret` and `db_app_password`;
+   - create the API's database role from inside the VPC (for example a one-off ECS task with the `postgres` image, or an SSM session), with `sql/app_role.sql`; its default privileges also cover the tables the first migration will create;
+   - run the workflow again: migrations, rollout and smoke test complete.
 
 ## Not covered
 
-WAF, custom domain and DNS records, autoscaling policies, alarms and dashboards, a CI/CD deploy pipeline, and key rotation schedules.
+WAF, custom domain and DNS records, autoscaling policies, alarms and dashboards, automated creation of the API database role, and key rotation schedules.

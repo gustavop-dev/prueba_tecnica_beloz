@@ -4,12 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The deploy workflow runs the same gates before touching AWS.
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # A called run joins its caller's group instead of cancelling a CI run on the same ref.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -87,7 +90,7 @@ jobs:
         run: make down
 
   terraform:
-    name: Terraform fmt + validate (AWS, not applied)
+    name: Infra check (Terraform + actionlint, not applied)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7

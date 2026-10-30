@@ -140,6 +140,12 @@ resource "aws_ecs_service" "api" {
     rollback = true
   }
 
+  # Terraform registers new task definition revisions; the deploy pipeline points the service at
+  # the new revision only after the migrate task succeeded (ADR 0010).
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
+
   depends_on = [aws_lb_listener.https]
 }
 

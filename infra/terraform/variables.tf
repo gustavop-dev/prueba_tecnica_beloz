@@ -96,3 +96,9 @@ variable "log_retention_days" {
   type        = number
   default     = 30
 }
+
+variable "workload_permissions_boundary_arn" {
+  description = "Permissions boundary for the stack's IAM roles, created by bootstrap/. Required when the pipeline applies; null only for local validation."
+  type        = string
+  default     = null
+}

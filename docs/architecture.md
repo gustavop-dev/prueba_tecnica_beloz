@@ -96,5 +96,5 @@ All code, identifiers, documentation and Markdown files are written in English.
 | [security.md](security.md) | Authentication, roles, IDOR, webhook signing, card data, secrets, input validation. |
 | [audit.md](audit.md) | Audit events, structured logs, health check. |
 | [testing.md](testing.md) | Test conventions and mandatory tests. |
-| [decisions/](decisions/) | ADR 0001 pessimistic locking · 0002 idempotency keys · 0003 modular monolith · 0004 UUID references without FKs · 0005 PostgreSQL everywhere · 0006 double-entry ledger with cache · 0007 integer cents and basis points · 0008 database guards · 0009 token auth and signed webhook. |
+| [decisions/](decisions/) | ADR 0001 pessimistic locking · 0002 idempotency keys · 0003 modular monolith · 0004 UUID references without FKs · 0005 PostgreSQL everywhere · 0006 double-entry ledger with cache · 0007 integer cents and basis points · 0008 database guards · 0009 token auth and signed webhook · 0010 deploy pipeline. |
 | [../infra/terraform/README.md](../infra/terraform/README.md) | AWS architecture, security decisions and deployment outline (Terraform, not applied). |
