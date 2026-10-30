@@ -30,4 +30,4 @@ No work is planned. Possible follow-ups, each needing the operator's decision:
 1. Auditing rejected attempts, not only mutations.
 2. A deploy pipeline for the Terraform stack.
 
-In progress: card freeze/unfreeze endpoints (branch `feat/card-freeze`).
+Done after the plan: card freeze/unfreeze endpoints (#9).
