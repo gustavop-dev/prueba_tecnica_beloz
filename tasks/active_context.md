@@ -4,12 +4,14 @@
 
 ## Current state
 
-F0–F4 merged (#1, #3–#6; #2 was the AI stack cleanup). F5 on branch `phase/f5-docs-terraform`: README, specs final, ADR 0003–0009, AWS Terraform (validated, not applied), Memory Bank refreshed, clean-clone termination check. The implementation plan is complete once F5 is merged. Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). No domain logic exists yet. Plan: `tasks/implementation-plan.md`.
+The implementation plan is **complete**: F0–F5 are merged into `main` (#1, #3–#7; #2 removed AI stack extras that do not apply to this project). Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). Plan: `tasks/implementation-plan.md`.
+
+The service implements every business rule in `docs/` with 851 tests against PostgreSQL 18. From a fresh clone, `make up`, `make test`, `make walkthrough` and `make reconcile` pass, and `make infra-check` validates the AWS Terraform (code only, never applied). CI runs lint, the suite (Hypothesis `ci` profile), the clean-clone scenario and Terraform validation on every pull request.
 
 ## Recent focus
 
-- Specs written: business rules, state machines, ledger, invariants, idempotency, security, audit and observability, testing, API, architecture, ADR 0001 (pessimistic locking) and ADR 0002 (idempotency keys).
-- Memory Bank initialized with `/methodology-setup`.
+- F5: README, specs marked final, architecture ADRs 0003–0009, AWS Terraform with a least-privilege database role, Memory Bank refreshed with `/methodology-setup`, clean-clone termination check.
+- F4: audit trail, HMAC-signed webhook, JSON logs. F3: idempotency and real-concurrency suites. F2: flows and API. F1: ledger and domain apps. F0: skeleton, Docker, CI.
 
 ## Active decisions
 
@@ -19,9 +21,12 @@ F0–F4 merged (#1, #3–#6; #2 was the AI stack cleanup). F5 on branch `phase/f
 - Termination: `make up` and `make test` pass from a clean clone.
 - Account opening uses option B: `POST /accounts` creates the `PENDING` deposit and reserves the account id (`docs/api.md`).
 - Operations core lives in `backend/core/` (no models).
-- Git workflow: one branch per phase (`phase/fN-*`) in its own worktree; one task worktree per subagent; commit at the end of each phase; PR to `main` per phase.
+- Git workflow: one branch per phase (`phase/fN-*`) in its own worktree, branched from `main` only after the previous phase is merged; one task worktree per subagent; commit at the end of each phase; one squash-merged PR to `main` per phase.
 
 ## Next steps
 
-1. Operator reviews F5.
-2. Possible follow-ups (not planned): card freeze/unfreeze endpoints, audit of rejected attempts, a deploy pipeline for the Terraform stack.
+No work is planned. Possible follow-ups, each needing the operator's decision:
+
+1. Card freeze/unfreeze endpoints (the domain and state machine already support `INACTIVE`).
+2. Auditing rejected attempts, not only mutations.
+3. A deploy pipeline for the Terraform stack.
