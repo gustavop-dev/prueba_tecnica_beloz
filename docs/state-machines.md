@@ -43,14 +43,14 @@ The closure guards are mutually exclusive and, given `0 ≤ debt ≤ deposit`, e
 | State | Description |
 | --- | --- |
 | `ACTIVE` | Accepts purchases. |
-| `INACTIVE` | Frozen (optional add-on). Purchases are rejected. Reversible. |
+| `INACTIVE` | Frozen by its owner. Purchases are rejected; repayments and closure are not affected. Reversible. |
 | `CLOSED` | Terminal. Closed together with its credit account. |
 
 | From | To | Trigger |
 | --- | --- | --- |
 | _(none)_ | `ACTIVE` | Deposit `PENDING → CONFIRMED` (BR-DEP-3). |
-| `ACTIVE` | `INACTIVE` | Freeze (add-on). |
-| `INACTIVE` | `ACTIVE` | Unfreeze (add-on). |
+| `ACTIVE` | `INACTIVE` | `POST /cards/{id}/freeze`. |
+| `INACTIVE` | `ACTIVE` | `POST /cards/{id}/unfreeze`. |
 | `ACTIVE`, `INACTIVE` | `CLOSED` | Account closure. |
 
 In a real product `INACTIVE` could mean a permanent block that leaves the card unusable and requires issuing a new one. That is out of scope: here it only means frozen.

@@ -41,8 +41,32 @@ def _close(account_id):
     return lambda: flows.close(owner_id=OWNER, account_id=account_id)
 
 
+def _freeze(card_id):
+    return lambda: flows.freeze_card(owner_id=OWNER, card_id=card_id)
+
+
 def _purchase_entries(account_id):
     return [entry for entry in ledger.list_entries(account_id) if entry.kind == "PURCHASE"]
+
+
+@pytest.mark.parametrize("round_", range(5))
+def test_purchase_racing_card_freeze_matches_a_serial_order(round_):
+    """Fails if a purchase and a freeze racing each other deadlock or leave a state no serial order allows (CON-4)."""
+    opened = open_account(OWNER, deposit_minor=1_000)
+
+    purchase, frozen = run_concurrently(_purchase(opened.card.id, 300), _freeze(opened.card.id))
+
+    serial_orders = {
+        ("OK", "OK"): 300,  # purchase first, then the card is frozen
+        ("CardNotActive", "OK"): 0,  # freeze first: the purchase is rejected
+    }
+    assert outcome_names([purchase, frozen]) in serial_orders
+    assert frozen.value.status == "INACTIVE"
+    assert (
+        accounts.get_account(opened.account.id).outstanding_minor
+        == serial_orders[outcome_names([purchase, frozen])]
+    )
+    assert find_mismatches() == []
 
 
 def test_concurrent_purchases_never_exceed_the_limit():

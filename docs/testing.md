@@ -74,7 +74,7 @@ Run with `TransactionTestCase` semantics (`@pytest.mark.django_db(transaction=Tr
 | --- | --- | --- |
 | TEST-SM-1 | Every transition **not** listed in [state-machines.md](state-machines.md), for deposit, credit account and card. | Rejected, state unchanged, no journal entry. |
 | TEST-SM-2 | Purchase, payment or closure on a `CLOSED` account. | Rejected (BR-CLO-6). |
-| TEST-SM-3 | Purchase with an `INACTIVE` card (add-on). | Rejected (BR-PUR-2). |
+| TEST-SM-3 | Purchase with an `INACTIVE` (frozen) card. | Rejected (BR-PUR-2). |
 
 TEST-SM-1 is generated from the transition tables: the test enumerates every `(from, to)` pair, subtracts the allowed ones and parametrizes the rest. Adding a state automatically adds its invalid transitions to the suite.
 
@@ -93,7 +93,7 @@ TEST-SM-1 is generated from the transition tables: the test enumerates every `(f
 
 | ID | Scenario | Must hold |
 | --- | --- | --- |
-| TEST-PROP-1 | A Hypothesis stateful test (`RuleBasedStateMachine`) runs random sequences of operations on an account: purchases, payments, closure, retries with a reused key and, if implemented, freeze/unfreeze. | After **every** step: `0 ≤ outstanding ≤ limit`; every journal entry sums 0; the cache matches the ledger; only valid state combinations exist; after closure, debt is 0 and `applied + refund = deposit`. |
+| TEST-PROP-1 | A Hypothesis stateful test (`RuleBasedStateMachine`) runs random sequences of operations on an account: purchases, payments, closure, retries with a reused key and card freeze/unfreeze through the API. | After **every** step: `0 ≤ outstanding ≤ limit`; every journal entry sums 0; the cache matches the ledger; only valid state combinations exist; after closure, debt is 0 and `applied + refund = deposit`. |
 | TEST-PROP-2 | Random amounts, including invalid ones (zero, negative, floats, strings, booleans). | Invalid amounts are always rejected and produce no effect. |
 
 ## 7. Reconciliation

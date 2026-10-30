@@ -7,7 +7,9 @@ from core.flows.operations import (
     RepaymentResult,
     authorize_purchase,
     close,
+    freeze_card,
     repay,
+    unfreeze_card,
 )
 from core.flows.queries import AccountView, get_account_view, get_ledger_entries
 
@@ -20,8 +22,10 @@ __all__ = [
     "apply_provider_report",
     "authorize_purchase",
     "close",
+    "freeze_card",
     "get_account_view",
     "get_ledger_entries",
     "repay",
     "request_account_opening",
+    "unfreeze_card",
 ]

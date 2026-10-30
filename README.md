@@ -29,6 +29,7 @@ All amounts are **integers in cents** (`_minor`), currency USD. Every `POST` req
 | `POST` | `/accounts` | customer | Request an account: creates the collateral deposit as `PENDING` and reserves the account id |
 | `POST` | `/webhooks/payments` | provider (signed) | Deposit outcome: success opens the account, limit and active card atomically; failure marks the deposit `FAILED` |
 | `POST` | `/cards/{id}/authorizations` | customer | Purchase, recorded as debt immediately |
+| `POST` | `/cards/{id}/freeze` · `/unfreeze` | customer | Freeze or unfreeze the card; a frozen card rejects purchases |
 | `POST` | `/accounts/{id}/repayments` | customer | Repayment, never above the debt |
 | `POST` | `/accounts/{id}/close` | customer | Collateral pays the debt, remainder refunded, account and card closed |
 | `GET` | `/accounts/{id}` | customer | Status, limit, debt, available credit, deposit and card |
@@ -114,5 +115,5 @@ The six apps never import each other; the operations core calls only their `serv
 - USD only; one collateral deposit and one card per account; a customer may own several fully isolated accounts.
 - The deposit provider is simulated by the signed webhook; a failed deposit simply opens nothing.
 - Authentication is simulated with static tokens but behaves like real authentication.
-- **Out of scope:** interest, fees, statements, a real card network, a frontend, additional deposits or limit increases, authorization/capture split. Card freezing exists in the domain (state `INACTIVE`) without an endpoint.
+- **Out of scope:** interest, fees, statements, a real card network, a frontend, additional deposits or limit increases, authorization/capture split.
 - Terraform is delivered as validated code and is not applied to a real AWS account.

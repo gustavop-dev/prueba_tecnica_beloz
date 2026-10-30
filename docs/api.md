@@ -20,13 +20,15 @@
 | `POST` | `/accounts` | `customer` | Request an account opening: creates the collateral deposit as `PENDING` (see [Account opening](#account-opening)). |
 | `POST` | `/webhooks/payments` | `payment_provider` | Report the deposit outcome: success opens the account (BR-DEP-3), failure marks it `FAILED` (BR-DEP-4). |
 | `POST` | `/cards/{id}/authorizations` | `customer` | Purchase: authorized and recorded as debt immediately (BR-PUR-1..2). |
+| `POST` | `/cards/{id}/freeze` | `customer` | Freeze the card (`ACTIVE → INACTIVE`): purchases are rejected until it is unfrozen. |
+| `POST` | `/cards/{id}/unfreeze` | `customer` | Unfreeze the card (`INACTIVE → ACTIVE`). |
 | `POST` | `/accounts/{id}/repayments` | `customer` | Payment (BR-PAY-1..3). |
 | `POST` | `/accounts/{id}/close` | `customer` | Close the account (BR-CLO-1..6). |
 | `GET` | `/accounts/{id}` | `customer` | Account status, limit, outstanding debt, available credit, deposit and card state. |
 | `GET` | `/accounts/{id}/ledger` | `customer` | The account's journal lines. |
 | `GET` | `/health` | — | Health check (OBS-4). |
 
-Card freeze/unfreeze endpoints belong to the optional add-on and are defined only if it is implemented.
+A frozen card only stops purchases: repayments and closure act on the account and stay available. Freezing a frozen card or unfreezing an active one answers `409 INVALID_STATE_TRANSITION`; on a closed account both answer `409 ACCOUNT_CLOSED`. Freezing moves no money, so it writes no journal entry.
 
 ### Account opening
 
@@ -46,6 +48,7 @@ Amounts are integers in cents; every money object carries `"currency": "USD"`.
 | `POST /accounts` | `{"deposit_amount_minor": 100000}` | `201` `{"account_id", "deposit": {"id", "status": "PENDING", "amount_minor", "applied_minor": null, "refunded_minor": null, "currency"}}` |
 | `POST /webhooks/payments` | `{"deposit_id": "<uuid>", "outcome": "succeeded" \| "failed"}` | `200` `{"deposit": {…, "status": "CONFIRMED" \| "FAILED"}, "account_id": "<uuid>" \| null}` |
 | `POST /cards/{id}/authorizations` | `{"amount_minor": 30000}` | `201` `{"authorization_id", "status": "APPROVED", "card_id", "account_id", "amount_minor", "credit_limit_minor", "outstanding_minor", "available_credit_minor", "currency"}` |
+| `POST /cards/{id}/freeze`, `POST /cards/{id}/unfreeze` | `{}` or no body | `200` `{"account_id", "card": {"id", "last4", "status": "INACTIVE" \| "ACTIVE"}}` |
 | `POST /accounts/{id}/repayments` | `{"amount_minor": 10000}` | `201` `{"repayment_id", "account_id", "amount_minor", "credit_limit_minor", "outstanding_minor", "available_credit_minor", "currency"}` |
 | `POST /accounts/{id}/close` | `{}` or no body | `200` `{"account_id", "status": "CLOSED", "debt_at_closure_minor", "refund_minor", "currency", "deposit": {…}, "card": {"id", "last4", "status"}, "closed_at"}` |
 | `GET /accounts/{id}` | — | `200` `{"id", "status", "collateral_ratio_bps", "credit_limit_minor", "outstanding_minor", "available_credit_minor", "currency", "deposit": {…}, "card": {…}, "created_at", "closed_at"}` |

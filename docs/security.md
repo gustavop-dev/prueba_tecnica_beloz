@@ -22,7 +22,7 @@ Authentication is simulated, as the exercise allows, but it must behave like rea
 
 | Role | Can | Cannot |
 | --- | --- | --- |
-| `customer` | Operate **only its own** accounts: open (create the deposit), purchase, pay, request closure, read them. | Access other customers' accounts. Call the webhook. |
+| `customer` | Operate **only its own** accounts: open (create the deposit), purchase, pay, freeze or unfreeze the card, request closure, read them. | Access other customers' accounts. Call the webhook. |
 | `operator` | Internal role that acts as the system itself. It exposes no endpoints in this exercise: only customer actions are in scope. | Call the webhook or any customer endpoint. |
 | `payment_provider` | Call the deposit webhook only. | Purchase, pay, close or read accounts. |
 

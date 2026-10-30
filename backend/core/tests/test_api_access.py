@@ -14,8 +14,19 @@ ACCOUNT_SCOPED = [
     ("post", "/accounts/{account}/repayments", {"amount_minor": 1}, 422),
     ("post", "/accounts/{account}/close", None, 200),
     ("post", "/cards/{card}/authorizations", {"amount_minor": 1}, 201),
+    ("post", "/cards/{card}/freeze", None, 200),
+    # The owner reaches the state machine: an ACTIVE card cannot be unfrozen.
+    ("post", "/cards/{card}/unfreeze", None, 409),
 ]
-ACCOUNT_SCOPED_IDS = ["detail", "ledger", "repayment", "closure", "purchase"]
+ACCOUNT_SCOPED_IDS = [
+    "detail",
+    "ledger",
+    "repayment",
+    "closure",
+    "purchase",
+    "freeze",
+    "unfreeze",
+]
 
 
 def _call(api: Api, method, template, body, account):
@@ -101,16 +112,18 @@ def test_foreign_resource_is_indistinguishable_from_a_missing_one(
 
 
 def test_another_customer_cannot_change_the_victims_balances(customer_a, customer_b, account_a):
-    """Fails if a rejected IDOR attempt still moves money on the victim's account (SEC-IDOR-1, TEST-SEC-4)."""
+    """Fails if a rejected IDOR attempt still changes the victim's money, account or card (SEC-IDOR-1, TEST-SEC-4)."""
     purchase(customer_a, account_a.card_id, 5_000)
 
     purchase(customer_b, account_a.card_id, 1_000)
     customer_b.post(f"/accounts/{account_a.account_id}/repayments", {"amount_minor": 5_000})
+    customer_b.post(f"/cards/{account_a.card_id}/freeze")
     customer_b.post(f"/accounts/{account_a.account_id}/close")
 
     detail = customer_a.get(f"/accounts/{account_a.account_id}").json()
     assert detail["outstanding_minor"] == 5_000
     assert detail["status"] == "ACTIVE"
+    assert detail["card"]["status"] == "ACTIVE"
 
 
 def test_account_ids_are_uuids(account_a):

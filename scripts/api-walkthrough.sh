@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # End-to-end API walkthrough against a running stack (`make up`), with an assertion per step.
-# open → confirm → purchase → rejected purchase → repay → IDOR check → close → rejected purchase.
+# open → confirm → purchase → rejected purchase → freeze → rejected purchase → unfreeze → repay
+# → IDOR check → close → rejected purchase → ledger.
 # Tokens and the webhook secret default to the development values of .env.example.
 set -euo pipefail
 
@@ -88,24 +89,33 @@ expect "5. purchase of 300.00 approved and recorded as debt" 201 \
 call POST "/cards/$CARD_ID/authorizations" "$CUSTOMER_TOKEN" '{"amount_minor": 80000}'
 expect "6. purchase above the available credit rejected" 422 error.code INSUFFICIENT_CREDIT
 
+call POST "/cards/$CARD_ID/freeze" "$CUSTOMER_TOKEN"
+expect "7. freeze the card" 200 card.status INACTIVE
+
+call POST "/cards/$CARD_ID/authorizations" "$CUSTOMER_TOKEN" '{"amount_minor": 1000}'
+expect "8. a frozen card cannot purchase" 409 error.code CARD_NOT_ACTIVE
+
+call POST "/cards/$CARD_ID/unfreeze" "$CUSTOMER_TOKEN"
+expect "9. unfreeze the card" 200 card.status ACTIVE
+
 call POST "/accounts/$ACCOUNT_ID/repayments" "$CUSTOMER_TOKEN" '{"amount_minor": 10000}'
-expect "7. repayment of 100.00" 201 outstanding_minor 20000
+expect "10. repayment of 100.00" 201 outstanding_minor 20000
 
 call POST "/accounts/$ACCOUNT_ID/repayments" "$CUSTOMER_TOKEN" '{"amount_minor": 20001}'
-expect "8. repayment above the debt rejected" 422 error.code PAYMENT_EXCEEDS_DEBT
+expect "11. repayment above the debt rejected" 422 error.code PAYMENT_EXCEEDS_DEBT
 
 call GET "/accounts/$ACCOUNT_ID" "$OTHER_CUSTOMER_TOKEN"
-expect "9. another customer cannot see the account" 404 error.code NOT_FOUND
+expect "12. another customer cannot see the account" 404 error.code NOT_FOUND
 
 call POST "/accounts/$ACCOUNT_ID/close" "$CUSTOMER_TOKEN"
-expect "10. close: collateral pays the 200.00 debt, 800.00 refunded" 200 \
+expect "13. close: collateral pays the 200.00 debt, 800.00 refunded" 200 \
   status CLOSED debt_at_closure_minor 20000 refund_minor 80000 deposit.status PARTIALLY_APPLIED
 
 call POST "/cards/$CARD_ID/authorizations" "$CUSTOMER_TOKEN" '{"amount_minor": 100}'
-expect "11. no operation after closure" 409 error.code ACCOUNT_CLOSED
+expect "14. no operation after closure" 409 error.code ACCOUNT_CLOSED
 
 call GET "/accounts/$ACCOUNT_ID/ledger" "$CUSTOMER_TOKEN"
-expect "12. ledger: deposit, purchase, repayment, closure" 200 \
+expect "15. ledger: deposit, purchase, repayment, closure (freezing moves no money)" 200 \
   entries.0.kind DEPOSIT_CONFIRMED entries.1.kind PURCHASE entries.2.kind REPAYMENT entries.3.kind CLOSURE
 
 echo "Walkthrough completed: account $ACCOUNT_ID"

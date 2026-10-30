@@ -23,5 +23,7 @@ urlpatterns = [
         views.CardAuthorizationsView.as_view(),
         name="card-authorizations",
     ),
+    path("cards/<uuid:card_id>/freeze", views.CardFreezeView.as_view(), name="card-freeze"),
+    path("cards/<uuid:card_id>/unfreeze", views.CardUnfreezeView.as_view(), name="card-unfreeze"),
     path("webhooks/payments", views.ProviderWebhookView.as_view(), name="webhook-payments"),
 ]

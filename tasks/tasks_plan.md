@@ -13,6 +13,7 @@
 | F3 | Concurrency and idempotency | ✅ Merged (#5) |
 | F4 | Security hardening and audit | ✅ Merged (#6) |
 | F5 | Documentation, architecture ADRs, Terraform | ✅ Merged (#7) |
+| Follow-up | Card freeze / unfreeze endpoints | 🔎 In review (branch `feat/card-freeze`) |
 
 ## Codebase counts
 
