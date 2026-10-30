@@ -4,7 +4,7 @@
 
 ## Current state
 
-F0 implemented on branch `phase/f0-skeleton` (worktree `.claude/worktrees/f0-skeleton`) and waiting for the operator's gate review. Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). No domain logic exists yet. Plan: `tasks/implementation-plan.md`.
+F0 merged (#1). F1 implemented on branch `phase/f1-money-ledger` (four app subagents in task worktrees, merged into the phase branch; core money and reconcile by the orchestrator) and waiting for the operator's gate review. Contracts used: `tasks/f1-contracts.md`. Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). No domain logic exists yet. Plan: `tasks/implementation-plan.md`.
 
 ## Recent focus
 
@@ -23,6 +23,6 @@ F0 implemented on branch `phase/f0-skeleton` (worktree `.claude/worktrees/f0-ske
 
 ## Next steps
 
-1. Operator reviews F0 and the repo-cleanup report of the AI stack.
-2. Merge F0 into `main`, then branch `phase/f1-money-ledger` from it.
-3. F1: four app subagents in parallel task worktrees branched from the F1 phase branch.
+1. Operator reviews F1; PR #2 (AI stack cleanup) awaits the operator's merge.
+2. Merge F1 into `main`, then branch `phase/f2-flows-api` from it.
+3. F2: orchestrator builds `core/flows`, `core/auth` and `core/api` on the F1 service contracts.

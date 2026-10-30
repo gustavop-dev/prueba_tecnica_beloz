@@ -37,7 +37,7 @@ The per-customer accounts are scoped per **credit account**, not per user, so th
 | LED-1 | Every business transaction is recorded as one journal entry with at least two journal lines. |
 | LED-2 | The lines of an entry always sum to zero: total debits equal total credits. |
 | LED-3 | The ledger is append-only. Journal entries and lines are never updated or deleted. |
-| LED-4 | A PostgreSQL trigger rejects `UPDATE`, `DELETE` and `TRUNCATE` on journal entries and lines, so the rule holds even outside Python. |
+| LED-4 | PostgreSQL triggers reject `UPDATE` and `DELETE` on journal entries and lines for every role, and `TRUNCATE` for every non-superuser role, so the rule holds even outside Python. A superuser can disable any trigger anyway; exempting it from the `TRUNCATE` guard lets the test runner flush tables, while the production application role (never a superuser) cannot truncate. |
 | LED-5 | Lines store a signed integer `amount_minor`: debit is positive, credit is negative, zero is forbidden (`CHECK amount_minor <> 0`). |
 | LED-6 | LED-2 is also enforced in PostgreSQL with a deferred constraint trigger that checks each entry's sum at commit. |
 

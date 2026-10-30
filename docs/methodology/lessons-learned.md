@@ -22,3 +22,12 @@
 ## Deployment
 
 - `make up` and `make test` must pass from a clean clone.
+
+## F1 insights
+
+- import-linter `forbidden` contracts check indirect imports by default; DEP-2 needs `allow_indirect_imports = true` because every app's services import its own models.
+- Apps keep exceptions in `<app>/exceptions.py` (imported by both `states.py` and `services.py`) and re-export them from `services`, so the core imports only from `<app>.services`.
+- Django's `TestCase` teardown runs `check_constraints()`, which fires the deferred LED-6 triggers: a test that leaves an unbalanced entry fails at teardown. Intentional violations go inside a rolled-back savepoint.
+- PostgreSQL refuses `TRUNCATE` while deferred trigger events are pending in the same transaction; run `SET CONSTRAINTS ALL IMMEDIATE` first.
+- `make format` must bind-mount `./backend` and run as the host user, or it only formats the copy inside the image.
+- Per-app row-lock tests use real threads and a second connection (`FOR UPDATE NOWAIT` → `55P03`); removing `select_for_update` makes them fail, which proves they test the lock.

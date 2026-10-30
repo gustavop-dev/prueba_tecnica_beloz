@@ -109,7 +109,7 @@ The last lines of defense must be tested too, or a migration could drop them unn
 
 | ID | Scenario | Must hold |
 | --- | --- | --- |
-| TEST-DB-1 | `UPDATE`, `DELETE` and `TRUNCATE` on journal entries and lines. | Rejected by the trigger (LED-4). |
+| TEST-DB-1 | `UPDATE` and `DELETE` on journal entries and lines; `TRUNCATE` as a non-superuser role. | Rejected by the trigger (LED-4). |
 | TEST-DB-2 | Set `outstanding_minor` below 0 or above `credit_limit_minor`. | Rejected by the `CHECK` (CACHE-3). |
 | TEST-DB-3 | Commit an unbalanced journal entry. | Rejected by the deferred trigger (LED-6). |
 
