@@ -1,6 +1,6 @@
 # Invariants
 
-> Status: **draft**.
+> Status: **final** — implemented and verified (F0–F5).
 
 Non-negotiable properties of the system. They hold at every commit, for every credit account, under any concurrency. Each one is protected by Python **and** at least one guard that does not depend on application code being correct.
 

@@ -1,6 +1,6 @@
 # Testing
 
-> Status: **draft**. Items marked are recommendations pending confirmation.
+> Status: **final** — implemented and verified (F0–F5).
 
 ## 1. Principles
 

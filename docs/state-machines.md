@@ -1,6 +1,6 @@
 # State Machines
 
-> Status: **draft**.
+> Status: **final** — implemented and verified (F0–F5).
 
 Transitions not listed here are forbidden. Every transition happens inside the atomic operation that triggers it (see [business-rules.md](business-rules.md)).
 

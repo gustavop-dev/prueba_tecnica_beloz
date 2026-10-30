@@ -1,6 +1,6 @@
 # Architecture and Technical Decisions
 
-> Status: **draft**.
+> Status: **final** — implemented and verified (F0–F5).
 
 ## 1. Deployment
 
@@ -14,7 +14,7 @@
 
 | ID | Decision |
 | --- | --- |
-| STACK-1 | Python and Django: the latest versions officially supported by Django REST Framework, psycopg and Hypothesis, verified when scaffolding. |
+| STACK-1 | Python 3.14 and Django 6.1: the latest versions officially supported by Django REST Framework 3.18, psycopg 3.3 and Hypothesis 6.170 (pinned in `backend/uv.lock`). |
 | STACK-2 | API: Django REST Framework. |
 | STACK-3 | Database: PostgreSQL, latest major version, in **every** environment including tests. SQLite is forbidden. |
 | STACK-4 | Tests: `pytest`, `pytest-django`, `hypothesis` (see [testing.md](testing.md)). |
@@ -96,4 +96,5 @@ All code, identifiers, documentation and Markdown files are written in English.
 | [security.md](security.md) | Authentication, roles, IDOR, webhook signing, card data, secrets, input validation. |
 | [audit.md](audit.md) | Audit events, structured logs, health check. |
 | [testing.md](testing.md) | Test conventions and mandatory tests. |
-| [decisions/](decisions/) | ADR 0001 pessimistic locking; ADR 0002 idempotency keys and request fingerprint. |
+| [decisions/](decisions/) | ADR 0001 pessimistic locking · 0002 idempotency keys · 0003 modular monolith · 0004 UUID references without FKs · 0005 PostgreSQL everywhere · 0006 double-entry ledger with cache · 0007 integer cents and basis points · 0008 database guards · 0009 token auth and signed webhook. |
+| [../infra/terraform/README.md](../infra/terraform/README.md) | AWS architecture, security decisions and deployment outline (Terraform, not applied). |
