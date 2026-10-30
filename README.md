@@ -58,7 +58,7 @@ curl -s -X POST localhost:8000/accounts \
 | Only valid state changes | Explicit state machines per entity, checked under the row lock |
 | Customers see only their own data | Owner-scoped lookups; another customer's resource answers exactly like a missing one (404) |
 | Webhook cannot be forged or replayed | HMAC-SHA256 over timestamp + raw body, ±5 minutes, idempotency inside the window ([ADR 0009](docs/decisions/0009-simulated-token-auth-and-signed-webhook.md)) |
-| Who did what | Append-only audit events in the same transaction as each mutation; JSON logs with a request id |
+| Who did what | Append-only audit events in the same transaction as each mutation; rejected attempts of authenticated callers (business rules, wrong role, IDOR probes) audited too; unauthenticated attempts logged as security events; JSON logs with a request id |
 | Cache drift detectable | `make reconcile` recomputes balances from the ledger |
 
 ## Tests

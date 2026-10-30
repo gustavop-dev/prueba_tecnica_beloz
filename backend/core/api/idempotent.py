@@ -12,7 +12,8 @@ import uuid
 
 from rest_framework.response import Response
 
-from core.api.errors import ApiError, exception_handler
+from core.api import rejections
+from core.api.errors import ApiError, render
 from core.db import money_transaction
 from core.observability import context
 from idempotency import services as idempotency
@@ -53,6 +54,11 @@ def idempotent(view_method):
                 response = _run(view_method, view, request, *args, **kwargs)
                 if response.status_code >= 500:
                     raise _RollBack(response)
+                if response.status_code >= 400:
+                    # Stored with the response: a replay returns it without a second event.
+                    rejections.record_in_current_transaction(
+                        request, response.data["error"]["code"]
+                    )
                 idempotency.complete(
                     claim.record_id, status_code=response.status_code, body=response.data
                 )
@@ -78,4 +84,5 @@ def _run(view_method, view, request, *args, **kwargs) -> Response:
     try:
         return view_method(view, request, *args, **kwargs)
     except Exception as exc:  # noqa: BLE001 — every outcome must become a storable response
-        return exception_handler(exc, {"request": request, "view": view})
+        # `render`, not the DRF handler: the wrapper records the rejection in its transaction.
+        return render(exc, {"request": request, "view": view})

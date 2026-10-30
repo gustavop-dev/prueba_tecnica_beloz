@@ -126,12 +126,12 @@ def test_card_events_never_carry_the_token_or_a_card_number(customer_a, provider
     assert set(card_event.after_state) == {"status", "last4"}
 
 
-def test_business_rejection_is_not_audited(customer_a, account_a):
-    """Fails if a rejected operation, which changed nothing, produces an audit event (AUD-1)."""
+def test_business_rejection_records_no_mutation(customer_a, account_a):
+    """Fails if a rejected operation, which changed nothing, is recorded as a mutation (AUD-1)."""
     response = purchase(customer_a, account_a.card_id, DEPOSIT_MINOR + 1)
 
     assert response.status_code == 422
-    assert _events(response) == []
+    assert [event.outcome for event in _events(response)] == ["rejected"]
 
 
 def test_replayed_request_is_not_audited_again(customer_a, account_a):
