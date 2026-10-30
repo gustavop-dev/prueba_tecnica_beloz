@@ -28,7 +28,7 @@ Guarantees INV-6: every mutation is recorded with who, what, when and in which r
 
 ### Actions
 
-One event per mutated entity, inside the operation's transaction. Business rejections and idempotent replays change nothing and record nothing.
+One `succeeded` event per mutated entity, inside the operation's transaction. Idempotent replays record nothing; rejections are recorded as `rejected` attempts (see below).
 
 | Operation | Events (actor) |
 | --- | --- |
@@ -41,6 +41,17 @@ One event per mutated entity, inside the operation's transaction. Business rejec
 | Card freeze / unfreeze | `card.frozen` / `card.unfrozen` (customer) |
 
 States hold statuses and amounts; a card is identified only by its last 4 digits.
+
+### Rejected attempts
+
+Every event has an `outcome`: `succeeded` (a mutation, above) or `rejected` (an attempt that changed nothing).
+
+| ID | Rule |
+| --- | --- |
+| AUD-5 | Business and access rejections of an **authenticated** caller are audited as `rejected` events: `FORBIDDEN`, `NOT_FOUND` (including IDOR probes), `ACCOUNT_CLOSED`, `CARD_NOT_ACTIVE`, `DEPOSIT_NOT_PENDING`, `INVALID_STATE_TRANSITION`, `INSUFFICIENT_CREDIT`, `PAYMENT_EXCEEDS_DEBT`, `IDEMPOTENCY_KEY_REUSED`. |
+| AUD-6 | A rejected event names the attempted operation (`<entity>.<operation>`: `card.purchase`, `card.freeze`, `card.unfreeze`, `credit_account.repay`, `credit_account.close`, `credit_account.read`, `credit_account.read_ledger`, `collateral_deposit.request_opening`, `collateral_deposit.report`), the targeted entity when known (even another customer's), the `error_code` and an `attempt` with the request's whitelisted parameters (`amount_minor`, `deposit_amount_minor`, `outcome`). It has no before/after state. |
+| AUD-7 | Inside an idempotent `POST` the rejected event is written in the operation's transaction, together with the stored response: a replay adds nothing. Rejections raised outside it (role denial before the view, `404` on reads, a reused key) are written in their own transaction; if that write fails, the answer is unchanged and `audit.rejection_not_recorded` is logged. |
+| AUD-8 | Not audited: validation errors (`400`), technical failures (`5xx`) and unauthenticated attempts (`401`, including invalid or expired webhook signatures). The latter have no trustworthy actor and are logged instead (SEC-AUTH-6), so anonymous traffic never writes to the database. |
 
 ## 2. Structured logs
 

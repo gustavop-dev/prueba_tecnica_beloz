@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from accounts import services as accounts
 from cards import services as cards
 from collateral import services as collateral
+from core.api import rejections
 from core.auth.webhook import InvalidSignature, SignatureExpired
 from core.db import is_lock_timeout
 from core.money import InvalidAmount
@@ -98,7 +99,20 @@ def envelope(request, *, code: str, message: str, details=None) -> dict:
 
 
 def exception_handler(exc, context):
-    """DRF `EXCEPTION_HANDLER`: maps every exception to the envelope."""
+    """DRF `EXCEPTION_HANDLER`: the envelope, plus the trail of rejections raised outside an
+    idempotent operation (403 before the view, 404 on reads, a reused idempotency key)."""
+    response = render(exc, context)
+    request = context["request"]
+    code = response.data["error"]["code"]
+    if response.status_code == 401:
+        rejections.log_unauthenticated(request, code)
+    else:
+        rejections.record_in_own_transaction(request, code)
+    return response
+
+
+def render(exc, context) -> Response:
+    """Map any exception to the error envelope, without side effects."""
     request = context["request"]
     if isinstance(exc, ApiError):
         return Response(envelope(request, code=exc.code, message=exc.message), status=exc.status)

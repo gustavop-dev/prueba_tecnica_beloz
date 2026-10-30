@@ -1,20 +1,27 @@
 """Database guards on audit events, exercised with raw SQL that bypasses Python.
 
-CHECKs: actor role, action format, entity type, states are JSON objects (`after_state` never
-null). AUD-3 (INV-6): the table is append-only; update, delete and (non-superuser) truncate are
-rejected.
+CHECKs: actor role, action format, entity type, outcome, error code format, states and attempts
+are JSON objects; a success is a mutation (entity, after state, no error code or attempt) and a
+rejection changed nothing (no states, an error code and an attempt). AUD-3 (INV-6): the table is
+append-only whatever the outcome; update, delete and (non-superuser) truncate are rejected.
 """
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
-from django.db import IntegrityError, transaction
+from django.db import DataError, IntegrityError, transaction
 
-from audit.tests.conftest import EVENT_TABLE
+from audit.tests.conftest import EVENT_TABLE, REJECTED_COLUMNS
+
+ENTITY_ID = UUID("7a6b5c4d-3e2f-4a1b-8c9d-0e1f2a3b4c5d")
 
 
 def _violated_constraint(excinfo) -> str:
     return excinfo.value.__cause__.diag.constraint_name
+
+
+def _rejected(**overrides) -> dict:
+    return REJECTED_COLUMNS | overrides
 
 
 @pytest.fixture
@@ -24,7 +31,13 @@ def event_id(insert_raw_event):
 
 # --- CHECK constraints --------------------------------------------------------------------------
 
+SUCCEEDED_IS_MUTATION = "audit_auditevent_succeeded_is_mutation"
+REJECTED_CHANGED_NOTHING = "audit_auditevent_rejected_changed_nothing"
+ERROR_CODE_FORMAT = "audit_auditevent_error_code_format"
+ATTEMPT_IS_OBJECT = "audit_auditevent_attempt_is_object"
 
+
+# Each row violates exactly one constraint, so the reported name proves which CHECK caught it.
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     ("columns", "constraint"),
@@ -54,13 +67,58 @@ def event_id(insert_raw_event):
         pytest.param(
             {"before_state": "[1]"}, "audit_auditevent_before_state_is_object", id="before-array"
         ),
+        # Outcome values.
+        pytest.param({"outcome": "failed"}, "audit_auditevent_outcome_valid", id="outcome-unknown"),
+        pytest.param({"outcome": "SUCCEEDED"}, "audit_auditevent_outcome_valid", id="outcome-uc"),
+        pytest.param({"outcome": ""}, "audit_auditevent_outcome_valid", id="outcome-empty"),
+        # A success is a mutation.
+        pytest.param({"entity_id": None}, SUCCEEDED_IS_MUTATION, id="success-without-entity"),
+        pytest.param({"after_state": None}, SUCCEEDED_IS_MUTATION, id="success-without-after"),
+        pytest.param(
+            {"error_code": "INSUFFICIENT_CREDIT"}, SUCCEEDED_IS_MUTATION, id="success-with-code"
+        ),
+        pytest.param({"attempt": "{}"}, SUCCEEDED_IS_MUTATION, id="success-with-attempt"),
+        # A rejection changed nothing.
+        pytest.param(
+            _rejected(before_state='{"status": "ACTIVE"}'),
+            REJECTED_CHANGED_NOTHING,
+            id="rejection-with-before",
+        ),
+        pytest.param(
+            _rejected(after_state='{"status": "ACTIVE"}'),
+            REJECTED_CHANGED_NOTHING,
+            id="rejection-with-after",
+        ),
+        pytest.param(
+            _rejected(error_code=None), REJECTED_CHANGED_NOTHING, id="rejection-without-code"
+        ),
+        pytest.param(
+            _rejected(attempt=None), REJECTED_CHANGED_NOTHING, id="rejection-without-attempt"
+        ),
+        # Error code format (any outcome; only rejections may carry one).
+        pytest.param(
+            _rejected(error_code="insufficient_credit"), ERROR_CODE_FORMAT, id="code-lowercase"
+        ),
+        pytest.param(_rejected(error_code="NOT-FOUND"), ERROR_CODE_FORMAT, id="code-hyphen"),
+        pytest.param(_rejected(error_code="CODE1"), ERROR_CODE_FORMAT, id="code-digit"),
+        pytest.param(_rejected(error_code="NOT FOUND"), ERROR_CODE_FORMAT, id="code-space"),
+        pytest.param(_rejected(error_code="CODE\n"), ERROR_CODE_FORMAT, id="code-trailing-nl"),
+        pytest.param(_rejected(error_code=""), ERROR_CODE_FORMAT, id="code-empty"),
+        pytest.param(_rejected(error_code="CRÉDITO"), ERROR_CODE_FORMAT, id="code-non-ascii"),
+        # Attempts are JSON objects.
+        pytest.param(_rejected(attempt="[]"), ATTEMPT_IS_OBJECT, id="attempt-array"),
+        pytest.param(_rejected(attempt='"x"'), ATTEMPT_IS_OBJECT, id="attempt-string"),
+        pytest.param(_rejected(attempt="5000"), ATTEMPT_IS_OBJECT, id="attempt-number"),
+        pytest.param(_rejected(attempt="null"), ATTEMPT_IS_OBJECT, id="attempt-json-null"),
     ],
 )
 def test_event_violating_a_check_constraint_is_rejected(
     insert_raw_event, event_count, columns, constraint
 ):
-    """Fails if a row with an unknown role or entity type, a malformed action or a state that is
-    not a JSON object can be stored by bypassing the service (AUD-1, INV-6)."""
+    """Fails if a row with an unknown role, entity type or outcome, a malformed action or error
+    code, a JSON column that is not an object, a "success" that mutated nothing identifiable or
+    a "rejection" that claims to have changed state can be stored by bypassing the service
+    (AUD-1, INV-6)."""
     with pytest.raises(IntegrityError) as excinfo, transaction.atomic():
         insert_raw_event(**columns)
 
@@ -69,12 +127,23 @@ def test_event_violating_a_check_constraint_is_rejected(
 
 
 @pytest.mark.django_db
-def test_event_without_after_state_is_rejected(insert_raw_event, event_count):
-    """Fails if an event can be stored with no after state at all (SQL NULL) (AUD-1)."""
+def test_event_without_outcome_is_rejected(insert_raw_event, event_count):
+    """Fails if a row written outside the service can leave its outcome unstated (SQL NULL or a
+    silent database default) instead of declaring success or rejection (INV-6)."""
     with pytest.raises(IntegrityError) as excinfo, transaction.atomic():
-        insert_raw_event(after_state=None)
+        insert_raw_event(outcome=None)
 
-    assert excinfo.value.__cause__.diag.column_name == "after_state"
+    assert excinfo.value.__cause__.diag.column_name == "outcome"
+    assert event_count() == 0
+
+
+@pytest.mark.django_db
+def test_error_code_longer_than_64_characters_is_rejected(insert_raw_event, event_count):
+    """Fails if the error code column silently accepts (or truncates) a code over 64 characters
+    (AUD-1)."""
+    with pytest.raises(DataError), transaction.atomic():
+        insert_raw_event(**_rejected(error_code="A" * 65))
+
     assert event_count() == 0
 
 
@@ -102,7 +171,42 @@ def test_event_satisfying_every_check_is_stored(insert_raw_event, stored_event):
         {"status": "ACTIVE"},
         None,
         None,
+        "succeeded",
+        None,
+        None,
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("columns", "expected"),
+    [
+        pytest.param(
+            {"entity_id": None, "attempt": "{}", "error_code": "FORBIDDEN"},
+            (None, None, None, "rejected", "FORBIDDEN", {}),
+            id="no-entity-empty-attempt",
+        ),
+        pytest.param(
+            {"entity_id": ENTITY_ID, "error_code": "A" * 64},
+            (ENTITY_ID, None, None, "rejected", "A" * 64, {"amount_minor": 5000}),
+            id="entity-64-char-code",
+        ),
+        pytest.param(
+            {"entity_id": ENTITY_ID, "error_code": "_", "attempt": '{"filters": {"limit": 10}}'},
+            (ENTITY_ID, None, None, "rejected", "_", {"filters": {"limit": 10}}),
+            id="underscore-code-nested-attempt",
+        ),
+    ],
+)
+def test_rejection_satisfying_every_check_is_stored(
+    insert_raw_event, stored_event, columns, expected
+):
+    """Fails if the CHECKs reject a valid rejection: no entity, an empty attempt, a 64-character
+    or single-underscore code, or a nested attempt object (AUD-1)."""
+    event_id = insert_raw_event(**_rejected(**columns))
+
+    stored = stored_event(event_id)
+    assert (*stored[5:8], *stored[10:]) == expected
 
 
 # --- AUD-3: append-only -------------------------------------------------------------------------
@@ -113,15 +217,28 @@ MUTATIONS = {
     "update-occurred-at": f"UPDATE {EVENT_TABLE} "  # noqa: S608
     "SET occurred_at = occurred_at - interval '1 day' WHERE id = %s",
     "update-noop": f"UPDATE {EVENT_TABLE} SET action = action WHERE id = %s",  # noqa: S608
+    "update-outcome": f"UPDATE {EVENT_TABLE} SET outcome = 'rejected' WHERE id = %s",  # noqa: S608
+    "update-error-code": f"UPDATE {EVENT_TABLE} SET error_code = NULL WHERE id = %s",  # noqa: S608
+    "update-attempt": f"UPDATE {EVENT_TABLE} SET attempt = '{{}}' WHERE id = %s",  # noqa: S608
     "delete": f"DELETE FROM {EVENT_TABLE} WHERE id = %s",  # noqa: S608
+}
+
+OUTCOME_ROWS = {
+    "succeeded": {"before_state": '{"status": "ACTIVE"}'},
+    "rejected": REJECTED_COLUMNS,
 }
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("row", OUTCOME_ROWS.values(), ids=OUTCOME_ROWS.keys())
 @pytest.mark.parametrize("sql", MUTATIONS.values(), ids=MUTATIONS.keys())
-def test_update_and_delete_of_an_event_are_rejected(raw_sql, stored_event, event_id, sql):
-    """Fails if an audit event can be rewritten or erased, even with raw SQL by a role that holds
-    the privileges, so the trail of a mutation could be hidden (AUD-3, INV-6)."""
+def test_update_and_delete_of_an_event_are_rejected(
+    raw_sql, insert_raw_event, stored_event, row, sql
+):
+    """Fails if an audit event of either outcome can be rewritten or erased, even with raw SQL by
+    a role that holds the privileges, so the trail of a mutation or of a refused attempt could be
+    hidden or a rejection turned into a success (AUD-3, INV-6)."""
+    event_id = insert_raw_event(**row)
     before = stored_event(event_id)
 
     with (

@@ -44,7 +44,8 @@ def _record(**overrides) -> AuditEventDTO:
 @pytest.mark.django_db
 def test_record_stores_every_field_exactly(stored_event):
     """Fails if any audited field (who, what, when, which request) is dropped or altered on its
-    way to the row, losing part of the INV-6 trail (AUD-1)."""
+    way to the row, losing part of the INV-6 trail, or if a mutation is not stored as a success
+    without error code or attempt (AUD-1)."""
     start = timezone.now()
 
     event = _record()
@@ -61,6 +62,9 @@ def test_record_stores_every_field_exactly(stored_event):
         AFTER,
         REQUEST_ID,
         IDEMPOTENCY_KEY,
+        "succeeded",
+        None,
+        None,
     )
 
 
@@ -82,6 +86,9 @@ def test_record_returns_the_event_as_stored(stored_event):
         after_state=AFTER,
         request_id=REQUEST_ID,
         idempotency_key=IDEMPOTENCY_KEY,
+        outcome="succeeded",
+        error_code=None,
+        attempt=None,
     )
     assert isinstance(event.id, UUID)
 
@@ -111,6 +118,9 @@ def test_record_of_a_creation_outside_http_stores_nulls(stored_event):
         ENTITY_ID,
         None,
         {"status": "PENDING", "amount_minor": 50_000},
+        None,
+        None,
+        "succeeded",
         None,
         None,
     )

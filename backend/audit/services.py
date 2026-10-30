@@ -8,10 +8,19 @@ The operations core records one event per mutated entity inside the mutation's o
         record(context=ctx, action="card.issued", entity_type="card", entity_id=card.id,
                before=None, after={"status": "ACTIVE", "last4": "4242"})
 
-States are JSON-compatible dicts (str keys; str, int, bool, None, list and dict values). Floats are
-rejected like everywhere else (BR-MONEY-3), and UUIDs or datetimes must be passed as strings.
-Keys that suggest a secret are rejected at any depth (AUD-4, SEC-CARD-3). The table is
-append-only in PostgreSQL (AUD-3, migration `0002_event_guards`).
+An authenticated attempt refused with an API error code is recorded with `record_rejection`, in
+whichever transaction the caller chooses; it changed nothing, so it has no states, only the error
+code and the sanitized request parameters (`attempt`):
+
+    with transaction.atomic():
+        record_rejection(context=ctx, action="card.purchase", entity_type="credit_account",
+                         entity_id=account_id, error_code="INSUFFICIENT_CREDIT",
+                         attempt={"amount_minor": 5000})
+
+States and attempts are JSON-compatible dicts (str keys; str, int, bool, None, list and dict
+values). Floats are rejected like everywhere else (BR-MONEY-3), and UUIDs or datetimes must be
+passed as strings. Keys that suggest a secret are rejected at any depth (AUD-4, SEC-CARD-3). The
+table is append-only in PostgreSQL (AUD-3, migration `0002_event_guards`), whatever the outcome.
 """
 
 import copy
@@ -24,11 +33,19 @@ from django.db import transaction
 from django.utils import timezone
 
 from audit.exceptions import AuditError, SensitiveDataRejected
-from audit.models import ACTION_PATTERN, ActorRole, AuditEvent, EntityType
+from audit.models import (
+    ACTION_PATTERN,
+    ERROR_CODE_PATTERN,
+    ActorRole,
+    AuditEvent,
+    EntityType,
+    Outcome,
+)
 
 __all__ = [
     "ACTOR_ROLES",
     "ENTITY_TYPES",
+    "OUTCOMES",
     "SENSITIVE_KEY_FRAGMENTS",
     "AuditContext",
     "AuditError",
@@ -36,10 +53,12 @@ __all__ = [
     "SensitiveDataRejected",
     "list_events",
     "record",
+    "record_rejection",
 ]
 
 ACTOR_ROLES: frozenset[str] = frozenset(ActorRole.values)
 ENTITY_TYPES: frozenset[str] = frozenset(EntityType.values)
+OUTCOMES: frozenset[str] = frozenset(Outcome.values)
 
 # AUD-4: a key whose lowercase name contains any of these is rejected, at any depth.
 SENSITIVE_KEY_FRAGMENTS: tuple[str, ...] = (
@@ -53,6 +72,8 @@ SENSITIVE_KEY_FRAGMENTS: tuple[str, ...] = (
 
 _ACTION_RE = re.compile(ACTION_PATTERN.removeprefix("^").removesuffix("$"))
 _ACTION_MAX_LENGTH = AuditEvent._meta.get_field("action").max_length
+_ERROR_CODE_RE = re.compile(ERROR_CODE_PATTERN.removeprefix("^").removesuffix("$"))
+_ERROR_CODE_MAX_LENGTH = AuditEvent._meta.get_field("error_code").max_length
 # Entity states are flat or shallow snapshots; the limit only stops runaway or cyclic structures.
 _MAX_STATE_DEPTH = 16
 
@@ -76,11 +97,14 @@ class AuditEventDTO:
     actor_role: str
     action: str
     entity_type: str
-    entity_id: UUID
+    entity_id: UUID | None  # None only for a rejection whose entity does not exist
     before_state: dict | None
-    after_state: dict
+    after_state: dict | None  # None only for rejections
     request_id: UUID | None
     idempotency_key: UUID | None
+    outcome: str  # "succeeded" | "rejected"
+    error_code: str | None  # rejections only
+    attempt: dict | None  # rejections only
 
 
 def _to_dto(event: AuditEvent) -> AuditEventDTO:
@@ -96,6 +120,9 @@ def _to_dto(event: AuditEvent) -> AuditEventDTO:
         after_state=event.after_state,
         request_id=event.request_id,
         idempotency_key=event.idempotency_key,
+        outcome=event.outcome,
+        error_code=event.error_code,
+        attempt=event.attempt,
     )
 
 
@@ -144,6 +171,18 @@ def _require_action(action: object) -> None:
 def _require_entity_type(entity_type: object) -> None:
     if not isinstance(entity_type, str) or entity_type not in ENTITY_TYPES:
         raise ValueError(f"entity_type must be one of {sorted(ENTITY_TYPES)}, got {entity_type!r}")
+
+
+def _require_error_code(error_code: object) -> None:
+    if (
+        not isinstance(error_code, str)
+        or len(error_code) > _ERROR_CODE_MAX_LENGTH
+        or _ERROR_CODE_RE.fullmatch(error_code) is None
+    ):
+        raise ValueError(
+            f"error_code must match {ERROR_CODE_PATTERN} and be at most "
+            f"{_ERROR_CODE_MAX_LENGTH} characters, got {error_code!r}"
+        )
 
 
 def _require_storable_string(path: str, value: str) -> None:
@@ -232,6 +271,51 @@ def record(
         after_state=after,
         request_id=context.request_id,
         idempotency_key=context.idempotency_key,
+        outcome=Outcome.SUCCEEDED,
+    )
+    return _to_dto(event)
+
+
+def record_rejection(
+    *,
+    context: AuditContext,
+    action: str,
+    entity_type: str,
+    entity_id: UUID | None,
+    error_code: str,
+    attempt: dict,
+) -> AuditEventDTO:
+    """Write one rejected-attempt event in the caller's transaction and return it.
+
+    `action` is the attempted operation (e.g. `card.purchase`), `entity_id` the targeted entity or
+    None when it does not exist yet, `error_code` the API error code (e.g. `INSUFFICIENT_CREDIT`)
+    and `attempt` the sanitized request parameters (may be empty). No state is stored: nothing
+    changed. Raises `ValueError` for any malformed argument and `SensitiveDataRejected` when an
+    attempt key suggests a PAN, token, signature or secret (AUD-4); nothing is written then.
+    """
+    _require_atomic("record_rejection")
+    _require_context(context)
+    _require_action(action)
+    _require_entity_type(entity_type)
+    _require_optional_uuid("entity_id", entity_id)
+    _require_error_code(error_code)
+    _require_state("attempt", attempt)
+
+    attempt = copy.deepcopy(attempt)
+    event = AuditEvent.objects.create(
+        occurred_at=timezone.now(),
+        actor_id=context.actor_id,
+        actor_role=context.actor_role,
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        before_state=None,
+        after_state=None,
+        request_id=context.request_id,
+        idempotency_key=context.idempotency_key,
+        outcome=Outcome.REJECTED,
+        error_code=error_code,
+        attempt=attempt,
     )
     return _to_dto(event)
 
@@ -240,6 +324,8 @@ def list_events(
     *, entity_id: UUID | None = None, request_id: UUID | None = None
 ) -> list[AuditEventDTO]:
     """Events matching every given filter, ordered by `occurred_at` then `id`. Read-only.
+
+    Both outcomes are returned; a rejection without an entity is only found by `request_id`.
 
     At least one filter is required: the audit log is never listed whole.
     """
