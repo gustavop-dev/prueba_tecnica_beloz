@@ -399,7 +399,9 @@ at the printed path.
   (escenario responsivo visual sin spec) pasan al Architect en Phase 2 como
   ítems e2e. Nunca pregunta (hereda este gating), nunca en fleet mode, y si la
   sesión ya la corrió sobre este mismo diff, cita ese resultado.
-- Flow map: the preflight emits `flow_map_fresh=yes|no`; **if the key is ABSENT,
+- Flow map: **backend-only repos (no `frontend/`) or a runtime without the
+  `qa-analyst` agent → `⏭️`** — there are no user flows to map. Otherwise the
+  preflight emits `flow_map_fresh=yes|no`; **if the key is ABSENT,
   the map does not exist** — same action as `no`: dispatch **`qa-analyst`** (it
   preloads `e2e-user-flows-check`) to derive the flow registry from the app's
   real code — the four outcome classes (success/error/failure/display),

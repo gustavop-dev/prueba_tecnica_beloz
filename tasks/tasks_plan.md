@@ -7,8 +7,8 @@
 | Phase | Scope | Status |
 | --- | --- | --- |
 | Specs | `docs/*.md`, ADR 0001–0002 | ✅ Done (draft) |
-| F0 | Skeleton, repository, Docker, CI | 🔎 In review (branch `phase/f0-skeleton`) |
-| F1 | Money, ledger, models | 🔎 In review (branch `phase/f1-money-ledger`) |
+| F0 | Skeleton, repository, Docker, CI | ✅ Merged (#1) |
+| F1 | Money, ledger, models | ✅ Merged (#3) |
 | F2 | Flows, API, principal and ownership | ⏳ Not started |
 | F3 | Concurrency and idempotency | ⏳ Not started |
 | F4 | Security hardening and audit | ⏳ Not started |
@@ -25,7 +25,6 @@
 
 ## Known issues
 
-- The AI stack's untracked `.github/workflows/*.yml` in the main checkout collide with the new `ci.yml` when F0 is merged; they must be removed first (repo-cleanup report).
 - F3: `ledger.provision_customer_accounts` recreates the global accounts with `get_or_create` after a test flush; concurrent openings right after a flush could race on the partial unique index. Make it conflict-safe (`ON CONFLICT DO NOTHING`) or use `serialized_rollback` in transactional tests.
 - F3: `lock_timeout` (CON-9) is set by the operations core when it opens each transaction.
 - The AI stack's quality gate (`$OPS_ROOT/scripts/qa/qa-agent.sh`) is unavailable until `vps-ops-toolkit` is cloned.
