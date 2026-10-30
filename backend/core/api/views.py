@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 
 from core import flows
 from core.api import presenters
+from core.api.idempotent import idempotent
 from core.api.serializers import (
     AmountRequest,
     EmptyRequest,
@@ -26,6 +27,7 @@ class AccountsView(APIView):
 
     permission_classes = [IsCustomer]
 
+    @idempotent
     def post(self, request):
         data = _validated(OpenAccountRequest, request)
         deposit = flows.request_account_opening(
@@ -39,6 +41,7 @@ class ProviderWebhookView(APIView):
 
     permission_classes = [IsPaymentProvider]
 
+    @idempotent
     def post(self, request):
         data = _validated(ProviderReportRequest, request)
         result = flows.apply_provider_report(
@@ -52,6 +55,7 @@ class CardAuthorizationsView(APIView):
 
     permission_classes = [IsCustomer]
 
+    @idempotent
     def post(self, request, card_id):
         data = _validated(AmountRequest, request)
         result = flows.authorize_purchase(
@@ -65,6 +69,7 @@ class RepaymentsView(APIView):
 
     permission_classes = [IsCustomer]
 
+    @idempotent
     def post(self, request, account_id):
         data = _validated(AmountRequest, request)
         result = flows.repay(
@@ -78,6 +83,7 @@ class CloseAccountView(APIView):
 
     permission_classes = [IsCustomer]
 
+    @idempotent
     def post(self, request, account_id):
         _validated(EmptyRequest, request)
         result = flows.close(owner_id=request.user.id, account_id=account_id)

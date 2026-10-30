@@ -4,7 +4,7 @@
 
 ## Current state
 
-F0 (#1), stack cleanup (#2) and F1 (#3) merged. F2 implemented on branch `phase/f2-flows-api` by the orchestrator (core/flows, core/auth, core/api) and waiting for the operator's gate review. Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). No domain logic exists yet. Plan: `tasks/implementation-plan.md`.
+F0 (#1), stack cleanup (#2), F1 (#3) and F2 (#4) merged. F3 implemented on branch `phase/f3-concurrency-idempotency` (idempotency app by its subagent; idempotent POST wrapper, lock_timeout, concurrency and Hypothesis suites by the orchestrator) and waiting for the gate review. Contracts: `tasks/f3-contracts.md`. Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). No domain logic exists yet. Plan: `tasks/implementation-plan.md`.
 
 ## Recent focus
 
@@ -23,6 +23,5 @@ F0 (#1), stack cleanup (#2) and F1 (#3) merged. F2 implemented on branch `phase/
 
 ## Next steps
 
-1. Operator reviews F2.
-2. F3: `idempotency` subagent (model, UNIQUE, canonical hash, claim/complete/replay) + orchestrator wiring every POST, `lock_timeout`, concurrency and Hypothesis suites.
-3. Known F3 items in `tasks/tasks_plan.md`.
+1. Operator reviews F3.
+2. F4: `audit` subagent (AuditEvent, append-only trigger, recording service) + orchestrator (audit in every flow's transaction, webhook HMAC + timestamp window, JSON logs, permission matrix).

@@ -39,3 +39,11 @@
 - Ownership is checked before the transaction with an owner-scoped lookup; a foreign id raises the same `NotFound` as a missing one, and a test compares both error bodies field by field.
 - The account status is checked right after locking the account row, before locking the card, so a closed account answers `ACCOUNT_CLOSED` rather than `CARD_NOT_ACTIVE`.
 - Mutation check: removing one ownership check makes 3 IDOR tests fail.
+
+## F3 insights
+
+- The idempotency claim is an `INSERT ... ON CONFLICT DO NOTHING` on the unique index: PostgreSQL makes a concurrent insert of the same key wait for the first transaction, so "insert first" (IDEM-10) gives exactly-once without application locks. A check-then-insert version fails 3 concurrency tests.
+- Wrapping the view (not the flow) in the idempotency transaction lets business rejections be stored: the flow's own `atomic()` becomes a savepoint that rolls back alone, while the claim survives and records the 4xx.
+- `SET LOCAL lock_timeout` via `set_config(..., true)` lasts until the outermost transaction ends, so nested `money_transaction()` blocks are harmless.
+- Hypothesis inside one pytest-django test transaction: each example opens its own account, and invariants check that account only (`find_account_mismatches`) to keep the run linear.
+- The worktree guard rejects shell loops that pipe into tools like `sed`; repeated runs go through a small script file.

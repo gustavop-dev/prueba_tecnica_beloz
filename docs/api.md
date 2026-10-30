@@ -8,7 +8,7 @@
 | --- | --- |
 | API-1 | JSON over HTTP. Amounts are integers in cents with the `_minor` suffix, plus `"currency": "USD"` in responses (BR-MONEY-1..5). |
 | API-2 | Every request carries `Authorization: Bearer <token>`, except `GET /health`. The webhook moves to HMAC signatures in F4 (SEC-HOOK-1..5); until then it is authenticated with the `payment_provider` bearer token. |
-| API-3 | Every `POST` requires an `Idempotency-Key` header (IDEM-1..3). |
+| API-3 | Every `POST` requires an `Idempotency-Key` header (IDEM-1..3). A replayed answer carries `Idempotent-Replayed: true` (IDEM-16). |
 | API-4 | Resource identifiers are UUIDs (SEC-IDOR-3). |
 | API-5 | Unknown body fields are rejected (SEC-INPUT-3). |
 | API-6 | Every response carries the `X-Request-ID` header (OBS-2). |

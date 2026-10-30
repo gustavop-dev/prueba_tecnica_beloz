@@ -10,11 +10,10 @@ import uuid
 from dataclasses import dataclass
 from uuid import UUID
 
-from django.db import transaction
-
 from accounts import services as accounts
 from cards import services as cards
 from collateral import services as collateral
+from core.db import money_transaction
 from core.money import parse_amount_minor
 from ledger import services as ledger
 
@@ -51,7 +50,7 @@ def authorize_purchase(*, owner_id: UUID, card_id: UUID, amount_minor: int) -> A
     amount = parse_amount_minor(amount_minor)
     account_id = cards.get_card(card_id).credit_account_id
     accounts.get_account_for_owner(account_id, owner_id)
-    with transaction.atomic():
+    with money_transaction():
         _require_open(accounts.lock_account(account_id))
         card = cards.ensure_can_authorize(card_id)
         account = accounts.increase_outstanding(account_id, amount)
@@ -66,7 +65,7 @@ def repay(*, owner_id: UUID, account_id: UUID, amount_minor: int) -> RepaymentRe
     """Reduce the outstanding debt; never above it, so there is no credit balance (BR-PAY-1..3)."""
     amount = parse_amount_minor(amount_minor)
     accounts.get_account_for_owner(account_id, owner_id)
-    with transaction.atomic():
+    with money_transaction():
         _require_open(accounts.lock_account(account_id))
         account = accounts.decrease_outstanding(account_id, amount)
         repayment_id = uuid.uuid4()
@@ -81,7 +80,7 @@ def close(*, owner_id: UUID, account_id: UUID) -> ClosureResult:
     zero; the deposit is settled, the card closed and the account closed together.
     """
     accounts.get_account_for_owner(account_id, owner_id)
-    with transaction.atomic():
+    with money_transaction():
         account = accounts.lock_account(account_id)
         _require_open(account)
         deposit = collateral.lock_deposit(account.deposit_id)

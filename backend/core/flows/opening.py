@@ -3,11 +3,10 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from django.db import transaction
-
 from accounts import services as accounts
 from cards import services as cards
 from collateral import services as collateral
+from core.db import money_transaction
 from core.money import COLLATERAL_RATIO_BPS, credit_limit_minor, parse_amount_minor
 from ledger import services as ledger
 
@@ -25,7 +24,7 @@ def request_account_opening(*, owner_id: UUID, deposit_amount_minor: int) -> col
     No account exists until the provider confirms the deposit (BR-ACC-1, BR-ACC-4).
     """
     amount = parse_amount_minor(deposit_amount_minor)
-    with transaction.atomic():
+    with money_transaction():
         return collateral.create_pending_deposit(owner_id=owner_id, amount_minor=amount)
 
 
@@ -36,7 +35,7 @@ def apply_provider_report(*, deposit_id: UUID, succeeded: bool) -> ProviderRepor
     `Dr cash / Cr customer_collateral` and issues the card as ACTIVE (BR-DEP-3). Failure only marks
     the deposit FAILED (BR-DEP-4). Only a PENDING deposit can be reported (BR-DEP-6).
     """
-    with transaction.atomic():
+    with money_transaction():
         # CON-5: the account does not exist yet, so the PENDING deposit row is the lock.
         collateral.lock_deposit(deposit_id)
         if not succeeded:

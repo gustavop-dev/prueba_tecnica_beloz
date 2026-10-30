@@ -60,6 +60,7 @@ jobs:
       POSTGRES_PASSWORD: ci-only-password
       POSTGRES_HOST: localhost
       POSTGRES_PORT: "5432"
+      HYPOTHESIS_PROFILE: ci
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.3
