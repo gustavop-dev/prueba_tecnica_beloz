@@ -16,7 +16,7 @@
 | TEAM-1 | A subagent writes only inside `backend/<app>/`: models, migrations, database guards, state machine, `services.py`, tests. Shared files are written only by the orchestrator. |
 | TEAM-2 | Each subagent's brief contains only the spec sections relevant to its app (distributed Memory Bank), plus `docs/architecture.md` §3–4 and `docs/testing.md` §1. |
 | TEAM-3 | Services return immutable dataclasses, never model instances (DEP-3). |
-| TEAM-4 | Each subagent runs its tests with its own test database: `TEST_DB_NAME=test_<app>`, so parallel runs do not collide on PostgreSQL. |
+| TEAM-4 | Each task runs in its own git worktree. Docker Compose names the project after the worktree directory, so every worktree gets its own PostgreSQL container and parallel `make test` runs never collide. `TEST_DB_NAME` remains available for runs outside Docker. Only `make test` / `make lint` are used, never `make up`, so no host port is bound. |
 | TEAM-5 | Tests follow the `backend-test-coverage` skill: three-part definition of done, permission matrix, docstring naming the bug and citing the spec ID. |
 | TEAM-6 | A subagent never changes a spec. If a spec looks wrong or incomplete, it stops and reports to the orchestrator. |
 

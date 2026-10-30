@@ -11,13 +11,19 @@ __pycache__/
 .ruff_cache/
 .hypothesis/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
+.import_linter_cache/
 
 # Terraform
 .terraform/
 *.tfstate
 *.tfstate.*
 *.tfplan
+*.tfvars
+!*.tfvars.example
+crash*.log
 
 # Local worktrees and editor files
 .claude/worktrees/

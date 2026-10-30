@@ -14,18 +14,22 @@
 | Local runtime | Docker Compose (PostgreSQL + app, health-checked) |
 | Infrastructure | Terraform for AWS, delivered as code, not applied |
 
-Versions: _not pinned yet — no code exists (F0 pending)._
+Pinned in `backend/uv.lock` (F0): Python 3.14.10 (Docker `python:3.14.10-slim`) · Django 6.1.2 · DRF 3.18.3 · psycopg 3.3.6 · gunicorn 26.2.0 · pytest 9.2.0 · pytest-django 4.14.0 · Hypothesis 6.170.14 · ruff 0.17.3 · import-linter 2.15 · uv 0.12.23 · PostgreSQL `18.6-alpine`.
 
 ## Development setup
 
-Target contract (to be implemented in F0):
+Only Docker and make are needed on the host. `.env` is created from `.env.example` on first use.
 
 ```bash
-make up     # start PostgreSQL + app with Docker Compose
-make test   # run the full test suite against PostgreSQL
+make up       # build and start PostgreSQL + API, wait until both are healthy
+make test     # full pytest suite inside the container against PostgreSQL (ARGS="-k ...")
+make lint     # ruff check + ruff format --check + lint-imports
+make format   # apply ruff fixes and formatting
+make migrate  # apply migrations
+make down     # stop the stack
 ```
 
-Both must pass from a clean clone.
+The `dev` Docker target includes test and lint tools; `runtime` is the production target. The container runs as a non-root user. CI (`.github/workflows/ci.yml`) runs lint, pytest against a PostgreSQL 18.6 service, and `make up` + `make test` from a clean checkout.
 
 ## Environment configuration
 

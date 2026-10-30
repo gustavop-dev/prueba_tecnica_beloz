@@ -4,7 +4,7 @@
 
 ## Current state
 
-Specification phase finished. All specs live in `docs/` (index in `docs/architecture.md` §7). No application code exists. The phased implementation plan (F0–F5) is approved: `tasks/implementation-plan.md`.
+F0 implemented on branch `phase/f0-skeleton` (worktree `.claude/worktrees/f0-skeleton`) and waiting for the operator's gate review. Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). No domain logic exists yet. Plan: `tasks/implementation-plan.md`.
 
 ## Recent focus
 
@@ -19,9 +19,10 @@ Specification phase finished. All specs live in `docs/` (index in `docs/architec
 - Termination: `make up` and `make test` pass from a clean clone.
 - Account opening uses option B: `POST /accounts` creates the `PENDING` deposit and reserves the account id (`docs/api.md`).
 - Operations core lives in `backend/core/` (no models).
-- No code is written until the operator starts F0.
+- Git workflow: one branch per phase (`phase/fN-*`) in its own worktree; one task worktree per subagent; commit at the end of each phase; PR to `main` per phase.
 
 ## Next steps
 
-1. Operator confirms repository visibility/name, commit policy at phase gates and the `vps-ops-toolkit` URL.
-2. Start F0 when the operator says so.
+1. Operator reviews F0 and the repo-cleanup report of the AI stack.
+2. Merge F0 into `main`, then branch `phase/f1-money-ledger` from it.
+3. F1: four app subagents in parallel task worktrees branched from the F1 phase branch.
