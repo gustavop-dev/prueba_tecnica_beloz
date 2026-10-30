@@ -109,11 +109,11 @@ The six apps never import each other; the operations core calls only their `serv
 | [docs/architecture.md](docs/architecture.md) | Technical decisions and module boundaries |
 | [docs/adr/](docs/adr/) | ADR 0001–0010, indexed with the origin of each decision |
 | [infra/terraform/README.md](infra/terraform/README.md) | AWS architecture, deploy pipeline and its one-time setup; deployment ADR in [infra/terraform/adr/](infra/terraform/adr/) |
-| [PROMPTS.md](PROMPTS.md) | The author's instructions, verbatim and in order |
+| [docs/ai-logs/](docs/ai-logs/) | The author's instructions verbatim ([PROMPTS.md](docs/ai-logs/PROMPTS.md)) and the full exported session ([ai_conversation.md](docs/ai-logs/ai_conversation.md)) |
 
 ## Planning and technical decisions
 
-This exercise was built with an AI coding assistant. The author designed the system and made the technical decisions; the assistant wrote the specifications down, proposed options where something was open, and implemented them. The author's own messages are in [PROMPTS.md](PROMPTS.md), unedited.
+This exercise was built with an AI coding assistant. The author designed the system and made the technical decisions; the assistant wrote the specifications down, proposed options where something was open, and implemented them. The author's own messages are in [PROMPTS.md](docs/ai-logs/PROMPTS.md), unedited.
 
 ### How the work was planned
 

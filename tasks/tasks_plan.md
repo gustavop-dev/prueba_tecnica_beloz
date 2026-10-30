@@ -17,6 +17,7 @@
 | Follow-up | Audit of rejected attempts | ✅ Implemented (#10) |
 | Follow-up | Manual, approved deploy pipeline (staging + production) | ✅ Implemented (#11), never run against AWS |
 | Follow-up | ADRs moved to `docs/adr/`, deployment ADR 0011, planning section in README, `PROMPTS.md` | ✅ Done (#12) |
+| Follow-up | `PROMPTS.md` and the exported session (redacted) in `docs/ai-logs/` | ✅ Done |
 
 ## Codebase counts
 
