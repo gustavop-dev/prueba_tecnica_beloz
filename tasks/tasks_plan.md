@@ -7,7 +7,7 @@
 | Phase | Scope | Status |
 | --- | --- | --- |
 | Specs | `docs/*.md`, ADR 0001–0002 | ✅ Done (draft) |
-| F0 | Skeleton, repository, Docker, CI | 🔎 In review (branch `phase/f0-skeleton`) |
+| F0 | Skeleton, repository, Docker, CI | ✅ Merged (#1) |
 | F1 | Money, ledger, models | ⏳ Not started |
 | F2 | Flows, API, principal and ownership | ⏳ Not started |
 | F3 | Concurrency and idempotency | ⏳ Not started |
@@ -25,7 +25,6 @@
 
 ## Known issues
 
-- The AI stack's untracked `.github/workflows/*.yml` in the main checkout collide with the new `ci.yml` when F0 is merged; they must be removed first (repo-cleanup report).
 - The AI stack's quality gate (`$OPS_ROOT/scripts/qa/qa-agent.sh`) is unavailable until `vps-ops-toolkit` is cloned.
 
 ## Testing status
