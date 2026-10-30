@@ -35,7 +35,7 @@ The Django project has these apps, each owning its models:
 
 ### Operations core
 
-`backend/core/` is the **operations core**: a Python package with no models (not a seventh app). It holds:
+`backend/core/` is the **operations core**: it owns no models and no migrations, so it is not a seventh domain app. It is listed in `INSTALLED_APPS` only so Django discovers its management commands. It holds:
 
 | Module | Content |
 | --- | --- |

@@ -1,0 +1,81 @@
+[project]
+name = "acme-secured-card"
+version = "0.1.0"
+description = "Secured credit card backend: Django modular monolith with a double-entry ledger."
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "django>=6.1.2,<6.2",
+    "djangorestframework>=3.18.3,<3.19",
+    "psycopg[binary]>=3.3.6,<3.4",
+    "gunicorn>=26.2.0,<27",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0,<10",
+    "pytest-django>=4.14.0,<5",
+    "hypothesis>=6.170.14,<7",
+    "ruff>=0.17.3,<0.18",
+    "import-linter>=2.15,<3",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "DJ", "S", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S603"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+addopts = "-ra --strict-markers"
+python_files = ["test_*.py"]
+
+[tool.importlinter]
+root_packages = [
+    "config",
+    "core",
+    "accounts",
+    "collateral",
+    "cards",
+    "ledger",
+    "idempotency",
+    "audit",
+]
+
+[[tool.importlinter.contracts]]
+name = "DEP-1: the six apps are independent of each other"
+type = "independence"
+modules = ["accounts", "collateral", "cards", "ledger", "idempotency", "audit"]
+
+[[tool.importlinter.contracts]]
+name = "DEP-1: apps never depend on the operations core"
+type = "forbidden"
+source_modules = ["accounts", "collateral", "cards", "ledger", "idempotency", "audit"]
+forbidden_modules = ["core"]
+
+[[tool.importlinter.contracts]]
+name = "DEP-2: the operations core never touches app models or migrations"
+type = "forbidden"
+source_modules = ["core"]
+forbidden_modules = [
+    "accounts.models",
+    "accounts.migrations",
+    "collateral.models",
+    "collateral.migrations",
+    "cards.models",
+    "cards.migrations",
+    "ledger.models",
+    "ledger.migrations",
+    "idempotency.models",
+    "idempotency.migrations",
+    "audit.models",
+    "audit.migrations",
+]
