@@ -78,8 +78,17 @@ jobs:
       - uses: actions/checkout@v7
       - run: make up
       - run: curl -fsS http://localhost:8000/health
+      - run: make walkthrough
+      - run: make reconcile
       - run: make test
       - if: always()
         run: docker compose logs
       - if: always()
         run: make down
+
+  terraform:
+    name: Terraform fmt + validate (AWS, not applied)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: make infra-check

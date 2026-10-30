@@ -53,7 +53,8 @@ DATABASES = {
         "PASSWORD": env.required("POSTGRES_PASSWORD"),
         "HOST": env.required("POSTGRES_HOST"),
         "PORT": env.optional("POSTGRES_PORT", "5432"),
-        "OPTIONS": {"connect_timeout": 3},
+        # libpq's default `prefer` locally; AWS sets `require` (RDS enforces TLS, see infra/).
+        "OPTIONS": {"connect_timeout": 3, "sslmode": env.optional("POSTGRES_SSLMODE", "prefer")},
         "TEST": {"NAME": env.optional("TEST_DB_NAME", f"test_{env.required('POSTGRES_DB')}")},
     }
 }

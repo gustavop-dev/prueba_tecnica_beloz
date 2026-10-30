@@ -1,6 +1,6 @@
 # Idempotency
 
-> Status: **draft**.
+> Status: **final** — implemented and verified (F0–F5).
 
 Guarantees INV-4: no money operation is applied twice, no matter how many times it is retried. The rationale is in [ADR 0002](decisions/0002-idempotency-keys-and-request-fingerprint.md).
 

@@ -4,7 +4,7 @@
 
 ## Current state
 
-F0 (#1), stack cleanup (#2), F1 (#3), F2 (#4) and F3 (#5) merged. F4 implemented on branch `phase/f4-security-audit` (audit app by its subagent; request context, audit trail in every flow, HMAC webhook, JSON logs by the orchestrator) and waiting for the gate review. Contracts: `tasks/f4-contracts.md`. Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). No domain logic exists yet. Plan: `tasks/implementation-plan.md`.
+F0–F4 merged (#1, #3–#6; #2 was the AI stack cleanup). F5 on branch `phase/f5-docs-terraform`: README, specs final, ADR 0003–0009, AWS Terraform (validated, not applied), Memory Bank refreshed, clean-clone termination check. The implementation plan is complete once F5 is merged. Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). No domain logic exists yet. Plan: `tasks/implementation-plan.md`.
 
 ## Recent focus
 
@@ -23,5 +23,5 @@ F0 (#1), stack cleanup (#2), F1 (#3), F2 (#4) and F3 (#5) merged. F4 implemented
 
 ## Next steps
 
-1. Operator reviews F4.
-2. F5: README, specs to final, architecture ADRs 0003–0009, Terraform for AWS (code only, including a non-superuser application role), Memory Bank refresh, clean-clone termination check.
+1. Operator reviews F5.
+2. Possible follow-ups (not planned): card freeze/unfreeze endpoints, audit of rejected attempts, a deploy pipeline for the Terraform stack.

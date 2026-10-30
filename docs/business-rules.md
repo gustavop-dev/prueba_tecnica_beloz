@@ -1,6 +1,6 @@
 # Business Rules
 
-> Status: **draft**.
+> Status: **final** — implemented and verified (F0–F5).
 
 ## 1. Scope
 

@@ -1,7 +1,12 @@
 COMPOSE := docker compose
 RUN := $(COMPOSE) run --rm
+TERRAFORM := docker run --rm --user "$$(id -u):$$(id -g)" --env TF_DATA_DIR=/tmp/terraform \
+	--volume ./infra/terraform:/workspace --workdir /workspace --entrypoint sh hashicorp/terraform:1.17.1 -c
 
-.PHONY: env up down test lint format walkthrough reconcile migrate logs
+.PHONY: help env up down test lint format walkthrough reconcile infra-check migrate logs
+
+help: ## List the available targets
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
 
 env: ## Create .env from .env.example when it does not exist
 	@test -f .env || cp .env.example .env
@@ -30,6 +35,9 @@ walkthrough: ## End-to-end API walkthrough against the running stack (run `make 
 
 reconcile: ## Verify the balance cache and deposits against the ledger
 	$(RUN) app python manage.py reconcile
+
+infra-check: ## Terraform fmt and validate for infra/terraform (AWS code, never applied here)
+	$(TERRAFORM) "terraform fmt -check -recursive -diff && terraform init -backend=false -input=false >/dev/null && terraform validate"
 
 migrate: env ## Apply database migrations
 	$(RUN) app python manage.py migrate

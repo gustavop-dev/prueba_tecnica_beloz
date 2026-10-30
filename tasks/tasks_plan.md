@@ -6,21 +6,24 @@
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| Specs | `docs/*.md`, ADR 0001–0002 | ✅ Done (draft) |
+| Specs | `docs/*.md`, ADR 0001–0009 | ✅ Final |
 | F0 | Skeleton, repository, Docker, CI | ✅ Merged (#1) |
 | F1 | Money, ledger, models | ✅ Merged (#3) |
 | F2 | Flows, API, principal and ownership | ✅ Merged (#4) |
 | F3 | Concurrency and idempotency | ✅ Merged (#5) |
-| F4 | Security hardening and audit | 🔎 In review (branch `phase/f4-security-audit`) |
-| F5 | Documentation, architecture ADRs, Terraform | ⏳ Not started |
+| F4 | Security hardening and audit | ✅ Merged (#6) |
+| F5 | Documentation, architecture ADRs, Terraform | 🔎 In review (branch `phase/f5-docs-terraform`) |
 
 ## Codebase counts
 
 | Item | Count |
 | --- | --- |
 | Models | 8 (`CreditAccount`, `CollateralDeposit`, `Card`, `LedgerAccount`, `JournalEntry`, `JournalLine`, `IdempotencyRecord`, `AuditEvent`) |
-| Backend test files | 40 (849 tests) |
+| Migrations | 10 |
+| Backend test files | 40 (306 test functions, 851 cases after parametrization) |
 | `urls.py` files | 2 (8 routes: `/health` + 7 API endpoints) |
+| ADRs | 9 |
+| Terraform files | 8 (`infra/terraform/`) + `sql/app_role.sql` |
 | Frontend | none (out of scope) |
 
 ## Known issues
@@ -30,4 +33,4 @@
 
 ## Testing status
 
-F4: 849 passing — TEST-SEC-1..6 (HMAC signature, tampered body, 5-minute window both ways, IDOR, missing/unknown token, wrong role), audit per mutation / none on rejection, replay or rollback, JSON logs with request id and no secrets; live walkthrough with a signed webhook, 45/45 JSON log lines. F3: 656 passing — TEST-CON-1..4 (real threads, 10/10 consecutive runs), TEST-IDEM-1..6 at the API plus claim blocking proven via `pg_locks`, TEST-PROP-1 (stateful machine over the API with retries, 200 examples × 25 steps in CI), TEST-PROP-2, CON-9 lock timeout → 503 and successful retry. F2: 550 passing — API happy paths, every rejection code, permission matrix per view, IDOR (404 indistinguishable from missing), strict amount input, atomicity under injected failures, full lifecycle reconciled; every BR-* rule cited by a test (35/35). F1: 412 passing — TEST-SM-1 (all apps with states), TEST-DB-1..3, TEST-REC-1..2, money parsing and limit properties (Hypothesis), no float/decimal fields, row-lock tests per app with real threads. Mandatory suites are specified in `docs/testing.md`.
+F5: 851 passing (+ database TLS mode from the environment). Termination: from a fresh clone, `make up && make test` and `make walkthrough` + `make reconcile` pass; `make infra-check` validates the Terraform. F4: 849 passing — TEST-SEC-1..6 (HMAC signature, tampered body, 5-minute window both ways, IDOR, missing/unknown token, wrong role), audit per mutation / none on rejection, replay or rollback, JSON logs with request id and no secrets; live walkthrough with a signed webhook, 45/45 JSON log lines. F3: 656 passing — TEST-CON-1..4 (real threads, 10/10 consecutive runs), TEST-IDEM-1..6 at the API plus claim blocking proven via `pg_locks`, TEST-PROP-1 (stateful machine over the API with retries, 200 examples × 25 steps in CI), TEST-PROP-2, CON-9 lock timeout → 503 and successful retry. F2: 550 passing — API happy paths, every rejection code, permission matrix per view, IDOR (404 indistinguishable from missing), strict amount input, atomicity under injected failures, full lifecycle reconciled; every BR-* rule cited by a test (35/35). F1: 412 passing — TEST-SM-1 (all apps with states), TEST-DB-1..3, TEST-REC-1..2, money parsing and limit properties (Hypothesis), no float/decimal fields, row-lock tests per app with real threads. Mandatory suites are specified in `docs/testing.md`.

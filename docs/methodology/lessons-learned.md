@@ -54,3 +54,10 @@
 - Request correlation (request id, idempotency key) travels in a `ContextVar` set by the middleware and the idempotent wrapper; flows and the log formatter read it without changing every signature. Threads start with an empty context, so direct flow calls in tests audit with null request fields.
 - The webhook is authenticated by signature alone; DRF uses the view's `authenticate_header` (`Signature`) for the `WWW-Authenticate` value, so the error handler must ask the view instead of hardcoding `Bearer`.
 - Python 3.14 (PEP 758) lets ruff format `except (A, B):` as `except A, B:`.
+
+## F5 insights
+
+- RDS's master user is `rds_superuser`, not a PostgreSQL superuser, so the append-only `TRUNCATE` exemption never applies in AWS; the API still runs as a narrower role without DDL, `DELETE` or `TRUNCATE`.
+- Migrations run as a one-off ECS task before each deployment, never from API replicas, so replicas do not race on schema changes.
+- Terraform is validated in Docker (`hashicorp/terraform` with a throwaway `TF_DATA_DIR`), and the provider lock file is committed so validation is reproducible.
+- The clean-clone CI job now also runs the walkthrough and reconcile, which covers gunicorn start-up (the F4 failure mode) on every push.

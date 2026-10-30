@@ -1,6 +1,6 @@
 # Audit and Observability
 
-> Status: **draft**.
+> Status: **final** — implemented and verified (F0–F5).
 
 Guarantees INV-6: every mutation is recorded with who, what, when and in which request.
 
