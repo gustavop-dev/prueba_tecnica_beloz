@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Each ADR records one decision: its context, the decision, the alternatives considered and the consequences. **Origin** says who made it: the author of the exercise, or the assistant with the author's explicit approval. The author's original instructions are in [PROMPTS.md](../../PROMPTS.md).
+Each ADR records one decision: its context, the decision, the alternatives considered and the consequences. **Origin** says who made it: the author of the exercise, or the assistant with the author's explicit approval. The author's original instructions are in [PROMPTS.md](../ai-logs/PROMPTS.md).
 
 | ADR | Decision | Origin |
 | --- | --- | --- |
