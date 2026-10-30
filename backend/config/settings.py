@@ -14,6 +14,9 @@ ALLOWED_HOSTS = env.csv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 # Parsed and validated at startup by core.auth (fail closed).
 AUTH_TOKENS = env.required("AUTH_TOKENS")
 
+# Longest wait for a row lock before a money operation gives up with LOCK_TIMEOUT (CON-9).
+DB_LOCK_TIMEOUT_MS = int(env.optional("DB_LOCK_TIMEOUT_MS", "5000"))
+
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "rest_framework",

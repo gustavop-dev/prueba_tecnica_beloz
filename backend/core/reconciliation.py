@@ -34,6 +34,12 @@ def find_mismatches() -> list[Mismatch]:
     return mismatches
 
 
+def find_account_mismatches(account_id: UUID) -> list[Mismatch]:
+    """The same per-account checks for one account (used by property tests after every step)."""
+    with read_only_snapshot():
+        return _account_mismatches(accounts.get_account(account_id))
+
+
 def _account_mismatches(account: accounts.AccountDTO) -> list[Mismatch]:
     balances = ledger.get_customer_balances(account.id)
     deposit = collateral.get_deposit(account.deposit_id)

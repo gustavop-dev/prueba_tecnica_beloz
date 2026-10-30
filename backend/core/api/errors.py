@@ -14,9 +14,21 @@ from rest_framework.response import Response
 from accounts import services as accounts
 from cards import services as cards
 from collateral import services as collateral
+from core.db import is_lock_timeout
 from core.money import InvalidAmount
+from idempotency import services as idempotency
 
 logger = logging.getLogger(__name__)
+
+
+class ApiError(Exception):
+    """An error the API layer itself raises, already carrying its glossary code."""
+
+    def __init__(self, status: int, code: str, message: str):
+        super().__init__(message)
+        self.status = status
+        self.code = code
+        self.message = message
 
 # (exception type, HTTP status, code, message). The first matching entry wins, so subclasses
 # (DepositNotPending ⊂ collateral.InvalidTransition) come before their parents.
@@ -46,6 +58,12 @@ DOMAIN_ERRORS = [
         "The operation is not allowed in the current state.",
     ),
     (InvalidAmount, 400, "VALIDATION_ERROR", "The request is invalid."),
+    (
+        idempotency.KeyReusedWithDifferentRequest,
+        422,
+        "IDEMPOTENCY_KEY_REUSED",
+        "This Idempotency-Key was already used for a different request.",
+    ),
 ]
 
 DRF_ERRORS = [
@@ -78,6 +96,17 @@ def envelope(request, *, code: str, message: str, details=None) -> dict:
 def exception_handler(exc, context):
     """DRF `EXCEPTION_HANDLER`: maps every exception to the envelope."""
     request = context["request"]
+    if isinstance(exc, ApiError):
+        return Response(envelope(request, code=exc.code, message=exc.message), status=exc.status)
+    if is_lock_timeout(exc):
+        return Response(
+            envelope(
+                request,
+                code="LOCK_TIMEOUT",
+                message="The account is busy. Retry with the same Idempotency-Key.",
+            ),
+            status=503,
+        )
     for exc_type, status, code, message in DOMAIN_ERRORS:
         if isinstance(exc, exc_type):
             return Response(envelope(request, code=code, message=message), status=status)
