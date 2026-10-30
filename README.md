@@ -71,7 +71,7 @@ PostgreSQL only — never SQLite ([ADR 0005](docs/decisions/0005-postgresql-in-e
 - **Security**: permission matrix per endpoint, IDOR, webhook signature tampering and expiry.
 - **Database guards**: raw SQL that bypasses Python proves each trigger and constraint.
 
-CI runs lint and module boundaries, the suite (with the Hypothesis CI profile), `make up` + walkthrough + reconcile + tests from a clean checkout, and Terraform validation.
+CI runs lint and module boundaries, the suite (with the Hypothesis CI profile), `make up` + walkthrough + reconcile + tests from a clean checkout, and Terraform validation. Deployment to AWS is a separate, manual workflow (`Deploy`: staging or production) that reruns those gates, shows the Terraform plan for approval, migrates, then rolls out ([ADR 0010](docs/decisions/0010-deploy-pipeline.md)).
 
 ## Architecture
 
@@ -107,8 +107,8 @@ The six apps never import each other; the operations core calls only their `serv
 | [docs/api.md](docs/api.md) | Endpoints, bodies, error glossary |
 | [docs/testing.md](docs/testing.md) | Test conventions and mandatory suites |
 | [docs/architecture.md](docs/architecture.md) | Technical decisions and module boundaries |
-| [docs/decisions/](docs/decisions/) | ADR 0001–0009 |
-| [infra/terraform/README.md](infra/terraform/README.md) | AWS architecture and deployment outline |
+| [docs/decisions/](docs/decisions/) | ADR 0001–0010 |
+| [infra/terraform/README.md](infra/terraform/README.md) | AWS architecture, deploy pipeline and its one-time setup |
 
 ## Scope and assumptions
 
@@ -116,4 +116,4 @@ The six apps never import each other; the operations core calls only their `serv
 - The deposit provider is simulated by the signed webhook; a failed deposit simply opens nothing.
 - Authentication is simulated with static tokens but behaves like real authentication.
 - **Out of scope:** interest, fees, statements, a real card network, a frontend, additional deposits or limit increases, authorization/capture split.
-- Terraform is delivered as validated code and is not applied to a real AWS account.
+- Terraform and the deploy pipeline are delivered as validated code; neither has run against a real AWS account.

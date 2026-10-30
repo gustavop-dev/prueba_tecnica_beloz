@@ -1,6 +1,9 @@
 COMPOSE := docker compose
 RUN := $(COMPOSE) run --rm
+# The plugin cache lives in the (git-ignored) workspace: both roots and later runs reuse one
+# provider download instead of fetching the AWS provider every time.
 TERRAFORM := docker run --rm --user "$$(id -u):$$(id -g)" --env TF_DATA_DIR=/tmp/terraform \
+	--env TF_PLUGIN_CACHE_DIR=/workspace/.terraform.d/plugin-cache \
 	--volume ./infra/terraform:/workspace --workdir /workspace --entrypoint sh hashicorp/terraform:1.17.1 -c
 
 .PHONY: help env up down test lint format walkthrough reconcile infra-check migrate logs
@@ -36,8 +39,12 @@ walkthrough: ## End-to-end API walkthrough against the running stack (run `make 
 reconcile: ## Verify the balance cache and deposits against the ledger
 	$(RUN) app python manage.py reconcile
 
-infra-check: ## Terraform fmt and validate for infra/terraform (AWS code, never applied here)
-	$(TERRAFORM) "terraform fmt -check -recursive -diff && terraform init -backend=false -input=false >/dev/null && terraform validate"
+infra-check: ## Terraform fmt + validate (stack and bootstrap) and actionlint on the workflows
+	$(TERRAFORM) "mkdir -p \$$TF_PLUGIN_CACHE_DIR && terraform fmt -check -recursive -diff \
+		&& terraform init -backend=false -input=false >/dev/null && terraform validate \
+		&& cd bootstrap && export TF_DATA_DIR=/tmp/terraform-bootstrap \
+		&& terraform init -backend=false -input=false >/dev/null && terraform validate"
+	docker run --rm --volume .:/repo --workdir /repo rhysd/actionlint:1.7.12 -color
 
 migrate: env ## Apply database migrations
 	$(RUN) app python manage.py migrate

@@ -25,8 +25,6 @@ The service implements every business rule in `docs/` with 851 tests against Pos
 
 ## Next steps
 
-No work is planned. Possible follow-ups, each needing the operator's decision:
+No work is planned.
 
-1. A deploy pipeline for the Terraform stack.
-
-Done after the plan: card freeze/unfreeze endpoints (#9); audit of rejected attempts (#10).
+Done after the plan: card freeze/unfreeze endpoints (#9); audit of rejected attempts (#10); manual, approved deploy pipeline (#11, ADR 0010) — validated but never run against AWS: connecting an account follows the one-time setup in `infra/terraform/README.md`.

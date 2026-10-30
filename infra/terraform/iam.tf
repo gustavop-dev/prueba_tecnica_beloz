@@ -11,8 +11,9 @@ data "aws_iam_policy_document" "ecs_tasks_assume" {
 
 # Execution role: pull the image, write logs, read exactly the secrets the tasks need.
 resource "aws_iam_role" "execution" {
-  name               = "${local.name}-execution"
-  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
+  name                 = "${local.name}-execution"
+  assume_role_policy   = data.aws_iam_policy_document.ecs_tasks_assume.json
+  permissions_boundary = var.workload_permissions_boundary_arn
 }
 
 resource "aws_iam_role_policy_attachment" "execution_managed" {
@@ -38,6 +39,7 @@ resource "aws_iam_role_policy" "execution_secrets" {
 
 # Task role: the application itself calls no AWS API, so it gets no permissions.
 resource "aws_iam_role" "task" {
-  name               = "${local.name}-task"
-  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
+  name                 = "${local.name}-task"
+  assume_role_policy   = data.aws_iam_policy_document.ecs_tasks_assume.json
+  permissions_boundary = var.workload_permissions_boundary_arn
 }

@@ -1,0 +1,190 @@
+# Deploy to AWS (ADR 0010). Manual only: run it from the Actions tab and pick the environment.
+#
+#   verify  → the same gates as CI on the commit being deployed
+#   plan    → terraform plan in the `<env>-plan` GitHub Environment (read-only role), shown in the
+#             run summary and saved as an artifact
+#   deploy  → `<env>` GitHub Environment (production requires a reviewer, who sees the plan first):
+#             apply exactly that plan → build and push the image → run migrations and check their
+#             exit code → roll the API out → wait until stable → smoke-test /health
+#
+# AWS access is short-lived OIDC credentials; no keys are stored. One-time setup:
+# infra/terraform/README.md, "Deploy pipeline".
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [staging, production]
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  # One deployment per environment at a time; never cancel a deployment halfway.
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  TERRAFORM_VERSION: "1.17.1"
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TARGET_ENVIRONMENT: ${{ inputs.environment }}
+
+jobs:
+  verify:
+    name: Verify (CI gates)
+    uses: ./.github/workflows/ci.yml
+
+  plan:
+    name: Plan
+    needs: verify
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}-plan
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra/terraform
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_certificate_arn: ${{ vars.CERTIFICATE_ARN }}
+      TF_VAR_allowed_hosts: ${{ vars.ALLOWED_HOSTS }}
+      TF_VAR_workload_permissions_boundary_arn: ${{ vars.WORKLOAD_PERMISSIONS_BOUNDARY_ARN }}
+      TF_VAR_image_tag: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - name: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="key=${TARGET_ENVIRONMENT}/terraform.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="use_lockfile=true"
+      - name: terraform plan
+        run: terraform plan -var-file="environments/${TARGET_ENVIRONMENT}.tfvars.json" -out=tfplan
+      - name: Show the plan to the reviewer
+        run: |
+          {
+            echo "## Terraform plan — ${TARGET_ENVIRONMENT} @ ${GITHUB_SHA::7}"
+            echo '```'
+            terraform show -no-color tfplan
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: tfplan-${{ inputs.environment }}-${{ github.run_id }}
+          path: infra/terraform/tfplan
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy
+    needs: plan
+    runs-on: ubuntu-24.04
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.API_BASE_URL }}
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra/terraform
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      API_BASE_URL: ${{ vars.API_BASE_URL }}
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - name: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="key=${TARGET_ENVIRONMENT}/terraform.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="use_lockfile=true"
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: tfplan-${{ inputs.environment }}-${{ github.run_id }}
+          path: infra/terraform
+      - name: terraform apply (exactly the reviewed plan)
+        run: terraform apply tfplan
+      - name: Read stack outputs
+        run: |
+          terraform output -json > outputs.json
+          {
+            echo "ECR_REPOSITORY=$(jq -r .ecr_repository_url.value outputs.json)"
+            echo "CLUSTER=$(jq -r .cluster_name.value outputs.json)"
+            echo "SERVICE=$(jq -r .service_name.value outputs.json)"
+            echo "API_TASK_DEFINITION=$(jq -r .api_task_definition.value outputs.json)"
+            echo "MIGRATE_TASK_DEFINITION=$(jq -r .migrate_task_definition.value outputs.json)"
+            echo "SUBNETS=$(jq -r '.private_subnet_ids.value | join(",")' outputs.json)"
+            echo "APP_SECURITY_GROUP=$(jq -r .app_security_group_id.value outputs.json)"
+          } >> "$GITHUB_ENV"
+      - uses: aws-actions/amazon-ecr-login@v2.1.7
+      - name: Build and push the runtime image
+        working-directory: backend
+        run: |
+          docker build --target runtime --tag "${ECR_REPOSITORY}:${IMAGE_TAG}" .
+          docker push "${ECR_REPOSITORY}:${IMAGE_TAG}"
+      - name: Run migrations before any new code serves traffic
+        run: |
+          task_arn="$(aws ecs run-task \
+            --cluster "$CLUSTER" \
+            --task-definition "$MIGRATE_TASK_DEFINITION" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${APP_SECURITY_GROUP}],assignPublicIp=DISABLED}" \
+            --query 'tasks[0].taskArn' --output text)"
+          echo "Migration task: ${task_arn}"
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$task_arn"
+          exit_code="$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$task_arn" \
+            --query 'tasks[0].containers[0].exitCode' --output text)"
+          if [ "$exit_code" != "0" ]; then
+            echo "::error::Migrations failed (exit code ${exit_code}); the running version was not changed."
+            exit 1
+          fi
+      - name: Roll out the new API version
+        run: |
+          aws ecs update-service \
+            --cluster "$CLUSTER" \
+            --service "$SERVICE" \
+            --task-definition "$API_TASK_DEFINITION" \
+            --force-new-deployment > /dev/null
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          # A rollback by the deployment circuit breaker also ends "stable": check what is serving.
+          # shellcheck disable=SC2016  # the backticks are JMESPath literals, not shell expansion
+          read -r primary_definition rollout_state <<< "$(aws ecs describe-services \
+            --cluster "$CLUSTER" --services "$SERVICE" \
+            --query 'services[0].deployments[?status==`PRIMARY`] | [0].[taskDefinition, rolloutState]' \
+            --output text)"
+          if [ "$primary_definition" != "$API_TASK_DEFINITION" ] || [ "$rollout_state" != "COMPLETED" ]; then
+            echo "::error::Rollout did not complete (${rollout_state}, serving ${primary_definition})."
+            exit 1
+          fi
+      - name: Smoke test
+        run: curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 "${API_BASE_URL}/health"

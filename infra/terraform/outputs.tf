@@ -31,3 +31,23 @@ output "migrate_task_definition" {
 output "cluster_name" {
   value = aws_ecs_cluster.main.name
 }
+
+output "service_name" {
+  description = "API service the pipeline rolls out after migrating."
+  value       = aws_ecs_service.api.name
+}
+
+output "api_task_definition" {
+  description = "Latest API task definition revision (the pipeline sets it on the service)."
+  value       = aws_ecs_task_definition.api.arn
+}
+
+output "private_subnet_ids" {
+  description = "Subnets for one-off tasks such as migrations."
+  value       = aws_subnet.private[*].id
+}
+
+output "app_security_group_id" {
+  description = "Security group for one-off tasks (reaches the database)."
+  value       = aws_security_group.app.id
+}
