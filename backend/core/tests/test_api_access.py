@@ -35,7 +35,7 @@ def _error_without_request_id(response):
 def test_anonymous_caller_is_unauthenticated(
     anonymous, account_a, method, template, body, owner_status
 ):
-    """Fails if an endpoint answers without credentials (SEC-AUTH-4)."""
+    """Fails if an endpoint answers without credentials (SEC-AUTH-4, TEST-SEC-5)."""
     response = _call(anonymous, method, template, body, account_a)
 
     assert response.status_code == 401
@@ -50,7 +50,7 @@ def test_anonymous_caller_is_unauthenticated(
 def test_non_customer_roles_are_forbidden(
     request, account_a, role_fixture, method, template, body, owner_status
 ):
-    """Fails if the provider or operator role can use customer endpoints (SEC-ROLE-1)."""
+    """Fails if the provider or operator role can use customer endpoints (SEC-ROLE-1, TEST-SEC-6)."""
     api = request.getfixturevalue(role_fixture)
 
     response = _call(api, method, template, body, account_a)
@@ -75,7 +75,7 @@ def test_owner_is_served(customer_a, account_a, method, template, body, owner_st
 def test_another_customer_gets_not_found(
     customer_a, customer_b, account_a, method, template, body, owner_status
 ):
-    """Fails if customer B can read or operate customer A's account or card (SEC-IDOR-1)."""
+    """Fails if customer B can read or operate customer A's account or card (SEC-IDOR-1, TEST-SEC-4)."""
     response = _call(customer_b, method, template, body, account_a)
 
     assert response.status_code == 404
@@ -101,7 +101,7 @@ def test_foreign_resource_is_indistinguishable_from_a_missing_one(
 
 
 def test_another_customer_cannot_change_the_victims_balances(customer_a, customer_b, account_a):
-    """Fails if a rejected IDOR attempt still moves money on the victim's account (SEC-IDOR-1)."""
+    """Fails if a rejected IDOR attempt still moves money on the victim's account (SEC-IDOR-1, TEST-SEC-4)."""
     purchase(customer_a, account_a.card_id, 5_000)
 
     purchase(customer_b, account_a.card_id, 1_000)
@@ -157,7 +157,7 @@ def test_webhook_accepts_only_a_provider_signature(request, customer_a, caller):
     ids=["unknown-token", "no-token", "wrong-scheme", "extra-parts"],
 )
 def test_invalid_credentials_are_unauthenticated(account_a, header):
-    """Fails if a malformed or unknown Authorization header is accepted (SEC-AUTH-4)."""
+    """Fails if a malformed or unknown Authorization header is accepted (SEC-AUTH-4, TEST-SEC-5)."""
     api = Api()
     api.client.credentials(HTTP_AUTHORIZATION=header)
 

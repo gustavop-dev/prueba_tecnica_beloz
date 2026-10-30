@@ -16,5 +16,11 @@ logconfig_dict = {
             "formatter": "json",
         }
     },
-    "loggers": {"gunicorn.error": {"handlers": ["stdout"], "level": "INFO", "propagate": False}},
+    # Gunicorn merges this dict over its defaults, whose root logger points at a "console" handler
+    # that no longer exists here: the root must be redefined.
+    "root": {"handlers": ["stdout"], "level": "INFO"},
+    "loggers": {
+        "gunicorn.error": {"handlers": ["stdout"], "level": "INFO", "propagate": False},
+        "gunicorn.access": {"handlers": ["stdout"], "level": "INFO", "propagate": False},
+    },
 }

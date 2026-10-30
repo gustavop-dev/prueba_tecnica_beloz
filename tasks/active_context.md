@@ -4,7 +4,7 @@
 
 ## Current state
 
-F0 (#1), stack cleanup (#2), F1 (#3) and F2 (#4) merged. F3 implemented on branch `phase/f3-concurrency-idempotency` (idempotency app by its subagent; idempotent POST wrapper, lock_timeout, concurrency and Hypothesis suites by the orchestrator) and waiting for the gate review. Contracts: `tasks/f3-contracts.md`. Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). No domain logic exists yet. Plan: `tasks/implementation-plan.md`.
+F0 (#1), stack cleanup (#2), F1 (#3), F2 (#4) and F3 (#5) merged. F4 implemented on branch `phase/f4-security-audit` (audit app by its subagent; request context, audit trail in every flow, HMAC webhook, JSON logs by the orchestrator) and waiting for the gate review. Contracts: `tasks/f4-contracts.md`. Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). No domain logic exists yet. Plan: `tasks/implementation-plan.md`.
 
 ## Recent focus
 
@@ -23,5 +23,5 @@ F0 (#1), stack cleanup (#2), F1 (#3) and F2 (#4) merged. F3 implemented on branc
 
 ## Next steps
 
-1. Operator reviews F3.
-2. F4: `audit` subagent (AuditEvent, append-only trigger, recording service) + orchestrator (audit in every flow's transaction, webhook HMAC + timestamp window, JSON logs, permission matrix).
+1. Operator reviews F4.
+2. F5: README, specs to final, architecture ADRs 0003–0009, Terraform for AWS (code only, including a non-superuser application role), Memory Bank refresh, clean-clone termination check.
