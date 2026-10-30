@@ -4,7 +4,7 @@
 
 ## Current state
 
-F0 merged (#1). F1 implemented on branch `phase/f1-money-ledger` (four app subagents in task worktrees, merged into the phase branch; core money and reconcile by the orchestrator) and waiting for the operator's gate review. Contracts used: `tasks/f1-contracts.md`. Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). No domain logic exists yet. Plan: `tasks/implementation-plan.md`.
+F0 (#1), stack cleanup (#2) and F1 (#3) merged. F2 implemented on branch `phase/f2-flows-api` by the orchestrator (core/flows, core/auth, core/api) and waiting for the operator's gate review. Repository: https://github.com/gustavop-dev/prueba_tecnica_beloz (public). No domain logic exists yet. Plan: `tasks/implementation-plan.md`.
 
 ## Recent focus
 
@@ -23,6 +23,6 @@ F0 merged (#1). F1 implemented on branch `phase/f1-money-ledger` (four app subag
 
 ## Next steps
 
-1. Operator reviews F1; PR #2 (AI stack cleanup) awaits the operator's merge.
-2. Merge F1 into `main`, then branch `phase/f2-flows-api` from it.
-3. F2: orchestrator builds `core/flows`, `core/auth` and `core/api` on the F1 service contracts.
+1. Operator reviews F2.
+2. F3: `idempotency` subagent (model, UNIQUE, canonical hash, claim/complete/replay) + orchestrator wiring every POST, `lock_timeout`, concurrency and Hypothesis suites.
+3. Known F3 items in `tasks/tasks_plan.md`.

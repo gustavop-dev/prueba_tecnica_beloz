@@ -9,7 +9,7 @@
 | Specs | `docs/*.md`, ADR 0001–0002 | ✅ Done (draft) |
 | F0 | Skeleton, repository, Docker, CI | ✅ Merged (#1) |
 | F1 | Money, ledger, models | ✅ Merged (#3) |
-| F2 | Flows, API, principal and ownership | ⏳ Not started |
+| F2 | Flows, API, principal and ownership | 🔎 In review (branch `phase/f2-flows-api`) |
 | F3 | Concurrency and idempotency | ⏳ Not started |
 | F4 | Security hardening and audit | ⏳ Not started |
 | F5 | Documentation, architecture ADRs, Terraform | ⏳ Not started |
@@ -19,8 +19,8 @@
 | Item | Count |
 | --- | --- |
 | Models | 6 (`CreditAccount`, `CollateralDeposit`, `Card`, `LedgerAccount`, `JournalEntry`, `JournalLine`) |
-| Backend test files | 21 (412 tests) |
-| `urls.py` files | 1 (1 route: `/health`) |
+| Backend test files | 28 (550 tests) |
+| `urls.py` files | 2 (8 routes: `/health` + 7 API endpoints) |
 | Frontend | none (out of scope) |
 
 ## Known issues
@@ -31,4 +31,4 @@
 
 ## Testing status
 
-F1: 412 passing — TEST-SM-1 (all apps with states), TEST-DB-1..3, TEST-REC-1..2, money parsing and limit properties (Hypothesis), no float/decimal fields, row-lock tests per app with real threads. Mandatory suites are specified in `docs/testing.md`.
+F2: 550 passing — API happy paths, every rejection code, permission matrix per view, IDOR (404 indistinguishable from missing), strict amount input, atomicity under injected failures, full lifecycle reconciled; every BR-* rule cited by a test (35/35). F1: 412 passing — TEST-SM-1 (all apps with states), TEST-DB-1..3, TEST-REC-1..2, money parsing and limit properties (Hypothesis), no float/decimal fields, row-lock tests per app with real threads. Mandatory suites are specified in `docs/testing.md`.

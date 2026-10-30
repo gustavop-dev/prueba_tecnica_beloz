@@ -7,7 +7,7 @@
 | ID | Rule |
 | --- | --- |
 | API-1 | JSON over HTTP. Amounts are integers in cents with the `_minor` suffix, plus `"currency": "USD"` in responses (BR-MONEY-1..5). |
-| API-2 | Every request carries `Authorization: Bearer <token>`, except the webhook (signed, SEC-HOOK-1..5) and `GET /health`. |
+| API-2 | Every request carries `Authorization: Bearer <token>`, except `GET /health`. The webhook moves to HMAC signatures in F4 (SEC-HOOK-1..5); until then it is authenticated with the `payment_provider` bearer token. |
 | API-3 | Every `POST` requires an `Idempotency-Key` header (IDEM-1..3). |
 | API-4 | Resource identifiers are UUIDs (SEC-IDOR-3). |
 | API-5 | Unknown body fields are rejected (SEC-INPUT-3). |
@@ -37,6 +37,24 @@ An account cannot exist before its deposit is confirmed (BR-ACC-1, BR-ACC-4, BR-
 
 Until step 2 succeeds, `GET /accounts/{reserved_id}` returns `404`.
 
+### Request and response bodies
+
+Amounts are integers in cents; every money object carries `"currency": "USD"`.
+
+| Endpoint | Request body | Success |
+| --- | --- | --- |
+| `POST /accounts` | `{"deposit_amount_minor": 100000}` | `201` `{"account_id", "deposit": {"id", "status": "PENDING", "amount_minor", "applied_minor": null, "refunded_minor": null, "currency"}}` |
+| `POST /webhooks/payments` | `{"deposit_id": "<uuid>", "outcome": "succeeded" \| "failed"}` | `200` `{"deposit": {…, "status": "CONFIRMED" \| "FAILED"}, "account_id": "<uuid>" \| null}` |
+| `POST /cards/{id}/authorizations` | `{"amount_minor": 30000}` | `201` `{"authorization_id", "status": "APPROVED", "card_id", "account_id", "amount_minor", "credit_limit_minor", "outstanding_minor", "available_credit_minor", "currency"}` |
+| `POST /accounts/{id}/repayments` | `{"amount_minor": 10000}` | `201` `{"repayment_id", "account_id", "amount_minor", "credit_limit_minor", "outstanding_minor", "available_credit_minor", "currency"}` |
+| `POST /accounts/{id}/close` | `{}` or no body | `200` `{"account_id", "status": "CLOSED", "debt_at_closure_minor", "refund_minor", "currency", "deposit": {…}, "card": {"id", "last4", "status"}, "closed_at"}` |
+| `GET /accounts/{id}` | — | `200` `{"id", "status", "collateral_ratio_bps", "credit_limit_minor", "outstanding_minor", "available_credit_minor", "currency", "deposit": {…}, "card": {…}, "created_at", "closed_at"}` |
+| `GET /accounts/{id}/ledger` | — | `200` `{"account_id", "currency", "entries": [{"id", "kind", "reference_id", "created_at", "lines": [{"ledger_account", "amount_minor"}]}]}` — signed lines, debit positive |
+
+### Walkthrough
+
+`make up && make walkthrough` runs `scripts/api-walkthrough.sh`: open → confirm → purchase → rejected purchase → repayment → rejected repayment → IDOR check → closure → rejected purchase → ledger, asserting the status and key fields at every step. `make reconcile` then checks the cache against the ledger.
+
 ## 3. Error format
 
 Every error uses the same envelope:
@@ -65,10 +83,13 @@ Every error uses the same envelope:
 | `INVALID_SIGNATURE` | 401 | Webhook signature does not match. |
 | `SIGNATURE_EXPIRED` | 401 | Webhook timestamp outside the 5-minute window. |
 | `FORBIDDEN` | 403 | The role may not use this endpoint. |
-| `NOT_FOUND` | 404 | The resource does not exist or belongs to another customer (SEC-IDOR-2). |
+| `NOT_FOUND` | 404 | The resource does not exist or belongs to another customer (SEC-IDOR-2), or the URL matches no route. |
+| `METHOD_NOT_ALLOWED` | 405 | The endpoint does not support the HTTP method. |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | The body is not `application/json`. |
 | `ACCOUNT_CLOSED` | 409 | Operation on a `CLOSED` account. |
 | `CARD_NOT_ACTIVE` | 409 | Purchase with a card that is not `ACTIVE`. |
 | `DEPOSIT_NOT_PENDING` | 409 | Webhook for a deposit that is no longer `PENDING`. |
+| `INVALID_STATE_TRANSITION` | 409 | Any other transition outside the state machines (INV-5). |
 | `INSUFFICIENT_CREDIT` | 422 | Purchase amount exceeds the available credit. |
 | `PAYMENT_EXCEEDS_DEBT` | 422 | Payment amount exceeds the outstanding debt (including debt 0). |
 | `IDEMPOTENCY_KEY_REUSED` | 422 | Same key with a different body (IDEM-2 behavior table). |

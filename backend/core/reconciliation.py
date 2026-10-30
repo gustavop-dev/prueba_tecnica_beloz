@@ -3,10 +3,9 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from django.db import connection, transaction
-
 from accounts import services as accounts
 from collateral import services as collateral
+from core.db import read_only_snapshot
 from core.money import credit_limit_minor
 from ledger import services as ledger
 
@@ -23,14 +22,9 @@ class Mismatch:
 def find_mismatches() -> list[Mismatch]:
     """Return every inconsistency between the cache, the deposits and the ledger.
 
-    When it opens its own transaction, it runs as read-only REPEATABLE READ so all checks see the
-    same snapshot. Inside a caller's transaction it reuses that transaction's snapshot.
+    All checks read the same snapshot (`read_only_snapshot`).
     """
-    owns_transaction = not connection.in_atomic_block
-    with transaction.atomic():
-        if owns_transaction:
-            with connection.cursor() as cursor:
-                cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+    with read_only_snapshot():
         mismatches = [
             Mismatch(check="unbalanced_entry", expected=0, actual="non-zero sum", entry_id=entry_id)
             for entry_id in ledger.find_unbalanced_entry_ids()
