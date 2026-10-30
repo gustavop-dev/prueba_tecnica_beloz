@@ -27,7 +27,6 @@ The service implements every business rule in `docs/` with 851 tests against Pos
 
 No work is planned. Possible follow-ups, each needing the operator's decision:
 
-1. Auditing rejected attempts, not only mutations.
-2. A deploy pipeline for the Terraform stack.
+1. A deploy pipeline for the Terraform stack.
 
-Done after the plan: card freeze/unfreeze endpoints (#9).
+Done after the plan: card freeze/unfreeze endpoints (#9); audit of rejected attempts (#10).
