@@ -13,7 +13,9 @@ from uuid import UUID
 from accounts import services as accounts
 from cards import services as cards
 from collateral import services as collateral
+from core.auth.principals import Role
 from core.db import money_transaction
+from core.flows import audit_trail as trail
 from core.money import parse_amount_minor
 from ledger import services as ledger
 
@@ -51,11 +53,13 @@ def authorize_purchase(*, owner_id: UUID, card_id: UUID, amount_minor: int) -> A
     account_id = cards.get_card(card_id).credit_account_id
     accounts.get_account_for_owner(account_id, owner_id)
     with money_transaction():
-        _require_open(accounts.lock_account(account_id))
+        before = accounts.lock_account(account_id)
+        _require_open(before)
         card = cards.ensure_can_authorize(card_id)
         account = accounts.increase_outstanding(account_id, amount)
         authorization_id = uuid.uuid4()
         ledger.post_purchase(account_id, amount, reference_id=authorization_id)
+        _record_account_change(owner_id, "credit_account.purchase_authorized", before, account)
     return AuthorizationResult(
         authorization_id=authorization_id, amount_minor=amount, account=account, card=card
     )
@@ -66,10 +70,12 @@ def repay(*, owner_id: UUID, account_id: UUID, amount_minor: int) -> RepaymentRe
     amount = parse_amount_minor(amount_minor)
     accounts.get_account_for_owner(account_id, owner_id)
     with money_transaction():
-        _require_open(accounts.lock_account(account_id))
+        before = accounts.lock_account(account_id)
+        _require_open(before)
         account = accounts.decrease_outstanding(account_id, amount)
         repayment_id = uuid.uuid4()
         ledger.post_repayment(account_id, amount, reference_id=repayment_id)
+        _record_account_change(owner_id, "credit_account.repayment_applied", before, account)
     return RepaymentResult(repayment_id=repayment_id, amount_minor=amount, account=account)
 
 
@@ -85,7 +91,7 @@ def close(*, owner_id: UUID, account_id: UUID) -> ClosureResult:
         _require_open(account)
         deposit = collateral.lock_deposit(account.deposit_id)
         card_id = cards.get_card_for_account(account_id).id
-        cards.lock_card(card_id)
+        card_before = cards.lock_card(card_id)
 
         closure = accounts.close_account(account_id)
         debt = closure.debt_at_closure_minor
@@ -96,6 +102,26 @@ def close(*, owner_id: UUID, account_id: UUID) -> ClosureResult:
             account_id, debt_minor=debt, refund_minor=refund, reference_id=closure_id
         )
         card = cards.close_card(card_id)
+
+        _record_account_change(owner_id, "credit_account.closed", account, closure.account)
+        trail.record(
+            actor_id=owner_id,
+            actor_role=Role.CUSTOMER,
+            action="deposit.settled",
+            entity_type=trail.COLLATERAL_DEPOSIT,
+            entity_id=deposit.id,
+            before=trail.deposit_state(deposit),
+            after=trail.deposit_state(settled),
+        )
+        trail.record(
+            actor_id=owner_id,
+            actor_role=Role.CUSTOMER,
+            action="card.closed",
+            entity_type=trail.CARD,
+            entity_id=card_id,
+            before=trail.card_state(card_before),
+            after=trail.card_state(card),
+        )
     return ClosureResult(
         closure_id=closure_id,
         debt_at_closure_minor=debt,
@@ -103,6 +129,20 @@ def close(*, owner_id: UUID, account_id: UUID) -> ClosureResult:
         account=closure.account,
         deposit=settled,
         card=card,
+    )
+
+
+def _record_account_change(
+    owner_id: UUID, action: str, before: accounts.AccountDTO, after: accounts.AccountDTO
+) -> None:
+    trail.record(
+        actor_id=owner_id,
+        actor_role=Role.CUSTOMER,
+        action=action,
+        entity_type=trail.CREDIT_ACCOUNT,
+        entity_id=after.id,
+        before=trail.account_state(before),
+        after=trail.account_state(after),
     )
 
 

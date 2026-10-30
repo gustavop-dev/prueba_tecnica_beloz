@@ -55,6 +55,8 @@ jobs:
     env:
       DJANGO_SECRET_KEY: ci-only-insecure-secret-key
       AUTH_TOKENS: customer:00000000-0000-4000-8000-000000000001:ci-only-customer-token
+      WEBHOOK_SIGNING_SECRET: ci-only-webhook-signing-secret-0000000
+      PAYMENT_PROVIDER_ID: 00000000-0000-4000-8000-00000000000f
       POSTGRES_DB: acme
       POSTGRES_USER: acme
       POSTGRES_PASSWORD: ci-only-password

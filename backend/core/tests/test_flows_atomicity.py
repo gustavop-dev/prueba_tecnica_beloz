@@ -12,6 +12,7 @@ from core.reconciliation import find_mismatches
 from core.tests.conftest import (
     CUSTOMER_A,
     DEPOSIT_MINOR,
+    PROVIDER,
     close,
     open_account,
     purchase,
@@ -34,7 +35,7 @@ def test_failure_while_confirming_leaves_the_deposit_pending_and_opens_nothing(c
     deposit_id = uuid.UUID(opening["deposit"]["id"])
 
     with mock.patch("core.flows.opening.cards.issue_card", side_effect=Boom), pytest.raises(Boom):
-        flows.apply_provider_report(deposit_id=deposit_id, succeeded=True)
+        flows.apply_provider_report(provider_id=PROVIDER, deposit_id=deposit_id, succeeded=True)
 
     assert collateral.get_deposit(deposit_id).status == "PENDING"
     with pytest.raises(accounts.AccountNotFound):

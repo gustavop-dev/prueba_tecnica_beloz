@@ -1,8 +1,11 @@
+import json
 import uuid
 from dataclasses import dataclass
 
 import pytest
 from rest_framework.test import APIClient
+
+from core.auth import webhook
 
 CUSTOMER_A = uuid.UUID("aaaaaaaa-0000-4000-8000-00000000000a")
 CUSTOMER_B = uuid.UUID("bbbbbbbb-0000-4000-8000-00000000000b")
@@ -17,6 +20,8 @@ TOKENS = {
 }
 
 DEPOSIT_MINOR = 100_000
+WEBHOOK_SECRET = "test-webhook-signing-secret-0123456789"
+WEBHOOK_URL = "/webhooks/payments"
 
 
 @pytest.fixture(autouse=True)
@@ -24,19 +29,31 @@ def auth_tokens(settings):
     settings.AUTH_TOKENS = ",".join(
         f"{role}:{principal_id}:{token}" for role, principal_id, token in TOKENS.values()
     )
+    settings.WEBHOOK_SIGNING_SECRET = WEBHOOK_SECRET
+    settings.PAYMENT_PROVIDER_ID = str(PROVIDER)
 
 
 class Api:
-    """API client for one caller. Every POST carries a fresh Idempotency-Key (API-3)."""
+    """API client for one caller. Every POST carries a fresh Idempotency-Key (API-3).
 
-    def __init__(self, token: str | None = None):
+    With `webhook_secret`, POSTs to the webhook are signed like the real provider signs them
+    (SEC-HOOK-1): HMAC-SHA256 over `"<timestamp>.<raw body>"` at the current time.
+    """
+
+    def __init__(self, token: str | None = None, webhook_secret: str | None = None):
         self.client = APIClient()
+        self.webhook_secret = webhook_secret
         if token:
             self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
     def post(self, url, body=None, **headers):
         headers.setdefault("HTTP_IDEMPOTENCY_KEY", str(uuid.uuid4()))
-        return self.client.post(url, {} if body is None else body, format="json", **headers)
+        raw = json.dumps({} if body is None else body).encode()
+        if self.webhook_secret and url == WEBHOOK_URL:
+            headers.setdefault(
+                "HTTP_X_WEBHOOK_SIGNATURE", webhook.sign(self.webhook_secret, webhook.now(), raw)
+            )
+        return self.client.post(url, raw, content_type="application/json", **headers)
 
     def post_raw(self, url, raw: str):
         return self.client.post(
@@ -57,8 +74,18 @@ def customer_b():
     return Api(TOKENS["customer_b"][2])
 
 
+def provider_api() -> Api:
+    return Api(TOKENS["provider"][2], webhook_secret=WEBHOOK_SECRET)
+
+
 @pytest.fixture
 def provider():
+    return provider_api()
+
+
+@pytest.fixture
+def provider_bearer_only():
+    """The provider's bearer token without the signing secret (rejected by the webhook)."""
     return Api(TOKENS["provider"][2])
 
 

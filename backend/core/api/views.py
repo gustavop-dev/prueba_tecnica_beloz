@@ -14,6 +14,7 @@ from core.api.serializers import (
     ProviderReportRequest,
 )
 from core.auth.permissions import IsCustomer, IsPaymentProvider
+from core.auth.webhook import WebhookSignatureAuthentication
 
 
 def _validated(serializer_class, request) -> dict:
@@ -37,15 +38,18 @@ class AccountsView(APIView):
 
 
 class ProviderWebhookView(APIView):
-    """POST /webhooks/payments — the provider reports the deposit outcome."""
+    """POST /webhooks/payments — the provider reports the deposit outcome (HMAC-signed)."""
 
+    authentication_classes = [WebhookSignatureAuthentication]
     permission_classes = [IsPaymentProvider]
 
     @idempotent
     def post(self, request):
         data = _validated(ProviderReportRequest, request)
         result = flows.apply_provider_report(
-            deposit_id=data["deposit_id"], succeeded=data["outcome"] == "succeeded"
+            provider_id=request.user.id,
+            deposit_id=data["deposit_id"],
+            succeeded=data["outcome"] == "succeeded",
         )
         return Response(presenters.provider_report(result))
 

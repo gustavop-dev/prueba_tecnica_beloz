@@ -15,7 +15,7 @@ RUN groupadd --system app \
     && useradd --system --gid app --home-dir /app app \
     && chown app:app /app
 
-CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 2 --access-logfile -"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn config.wsgi --config gunicorn.conf.py"]
 EXPOSE 8000
 
 # Production image: runtime dependencies only.

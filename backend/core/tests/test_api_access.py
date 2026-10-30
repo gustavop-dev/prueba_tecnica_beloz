@@ -136,16 +136,9 @@ def test_opening_requires_the_customer_role(request, caller, status, code):
     assert error_code(response) == code
 
 
-@pytest.mark.parametrize(
-    ("caller", "status", "code"),
-    [
-        ("anonymous", 401, "UNAUTHENTICATED"),
-        ("customer_a", 403, "FORBIDDEN"),
-        ("operator", 403, "FORBIDDEN"),
-    ],
-)
-def test_webhook_requires_the_payment_provider_role(request, customer_a, caller, status, code):
-    """Fails if a customer or operator can confirm a deposit through the webhook (SEC-ROLE-1)."""
+@pytest.mark.parametrize("caller", ["anonymous", "customer_a", "operator", "provider_bearer_only"])
+def test_webhook_accepts_only_a_provider_signature(request, customer_a, caller):
+    """Fails if anyone can confirm a deposit without the provider's signature, bearer tokens included (SEC-HOOK-5, TEST-SEC-6)."""
     deposit_id = customer_a.post("/accounts", {"deposit_amount_minor": 1_000}).json()["deposit"][
         "id"
     ]
@@ -153,8 +146,9 @@ def test_webhook_requires_the_payment_provider_role(request, customer_a, caller,
 
     response = api.post("/webhooks/payments", {"deposit_id": deposit_id, "outcome": "succeeded"})
 
-    assert response.status_code == status
-    assert error_code(response) == code
+    assert response.status_code == 401
+    assert error_code(response) == "INVALID_SIGNATURE"
+    assert response["WWW-Authenticate"] == "Signature"
 
 
 @pytest.mark.parametrize(
