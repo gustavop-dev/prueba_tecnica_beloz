@@ -16,7 +16,7 @@
 - Handling of failed deposits: retries, rejection reasons, notifications or any follow-up. A failed deposit simply opens no account.
 - Permanently blocking a card and issuing a replacement.
 
-**Optional add-on** (only if the core scope is finished): freezing a card (reversible).
+**Optional add-on — implemented:** freezing a card (reversible) through `POST /cards/{id}/freeze` and `POST /cards/{id}/unfreeze`.
 
 ## 2. Money
 

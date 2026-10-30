@@ -28,6 +28,10 @@ def card(dto: CardDTO) -> dict:
     return {"id": str(dto.id), "last4": dto.last4, "status": dto.status}
 
 
+def card_status(dto: CardDTO) -> dict:
+    return {"account_id": str(dto.credit_account_id), "card": card(dto)}
+
+
 def balances(dto: AccountDTO) -> dict:
     return {
         "credit_limit_minor": dto.credit_limit_minor,

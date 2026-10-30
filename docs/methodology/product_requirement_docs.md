@@ -35,7 +35,7 @@ The deliverable is a backend service (Django + DRF + PostgreSQL) whose priority 
 | Token authentication, roles, IDOR protection, HMAC-signed webhook | `security.md` |
 | Audit log, JSON logs with request id, health check | `audit.md` |
 
-**Optional add-on:** freezing a card (`INACTIVE`, reversible) — implemented in the `cards` domain and its state machine, exercised by the Hypothesis machine; no HTTP endpoint is exposed.
+**Optional add-on — implemented:** freezing a card (`INACTIVE`, reversible) through `POST /cards/{id}/freeze` and `/unfreeze`, audited, idempotent and exercised by the Hypothesis machine.
 
 **Status:** all features implemented and verified (F0–F5); see `tasks/tasks_plan.md`.
 

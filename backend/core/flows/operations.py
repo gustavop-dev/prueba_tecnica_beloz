@@ -132,6 +132,39 @@ def close(*, owner_id: UUID, account_id: UUID) -> ClosureResult:
     )
 
 
+def freeze_card(*, owner_id: UUID, card_id: UUID) -> cards.CardDTO:
+    """ACTIVE → INACTIVE: purchases are rejected until the card is unfrozen (state-machines.md §3).
+
+    Repayments and closure stay available: they act on the account, not the card.
+    """
+    return _change_card_status(owner_id, card_id, cards.freeze_card, "card.frozen")
+
+
+def unfreeze_card(*, owner_id: UUID, card_id: UUID) -> cards.CardDTO:
+    """INACTIVE → ACTIVE: the card can authorize purchases again (state-machines.md §3)."""
+    return _change_card_status(owner_id, card_id, cards.unfreeze_card, "card.unfrozen")
+
+
+def _change_card_status(owner_id: UUID, card_id: UUID, transition, action: str) -> cards.CardDTO:
+    account_id = cards.get_card(card_id).credit_account_id
+    accounts.get_account_for_owner(account_id, owner_id)
+    with money_transaction():
+        # Same lock order as purchases (CON-4): account first, then card.
+        _require_open(accounts.lock_account(account_id))
+        before = cards.lock_card(card_id)
+        after = transition(card_id)
+        trail.record(
+            actor_id=owner_id,
+            actor_role=Role.CUSTOMER,
+            action=action,
+            entity_type=trail.CARD,
+            entity_id=card_id,
+            before=trail.card_state(before),
+            after=trail.card_state(after),
+        )
+    return after
+
+
 def _record_account_change(
     owner_id: UUID, action: str, before: accounts.AccountDTO, after: accounts.AccountDTO
 ) -> None:

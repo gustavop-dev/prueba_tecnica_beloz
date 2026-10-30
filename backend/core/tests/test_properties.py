@@ -9,7 +9,6 @@ import json
 import uuid
 
 import pytest
-from django.db import transaction
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.stateful import (
@@ -20,7 +19,6 @@ from hypothesis.stateful import (
     run_state_machine_as_test,
 )
 
-from cards import services as cards
 from core.reconciliation import find_account_mismatches
 from core.tests.conftest import TOKENS, Api, open_account, provider_api
 
@@ -93,13 +91,24 @@ class AccountLifecycle(RuleBasedStateMachine):
             self.debt = 0
             self.closed = True
 
-    @precondition(lambda self: not self.closed)
-    @rule()
-    def toggle_freeze(self):
-        with transaction.atomic():
-            toggle = cards.unfreeze_card if self.frozen else cards.freeze_card
-            toggle(uuid.UUID(self.card_id))
-        self.frozen = not self.frozen
+    @rule(action=st.sampled_from(["freeze", "unfreeze"]))
+    def change_card_status(self, action):
+        """Freeze or unfreeze through the API, whatever the current state (state-machines.md §3)."""
+        response = self._post(f"/cards/{self.card_id}/{action}", {})
+        wants_frozen = action == "freeze"
+        if self.closed:
+            assert (response.status_code, response.json()["error"]["code"]) == (
+                409,
+                "ACCOUNT_CLOSED",
+            )
+        elif wants_frozen == self.frozen:
+            assert (response.status_code, response.json()["error"]["code"]) == (
+                409,
+                "INVALID_STATE_TRANSITION",
+            )
+        else:
+            assert response.status_code == 200, response.json()
+            self.frozen = wants_frozen
 
     @precondition(lambda self: self.last_post is not None)
     @rule()

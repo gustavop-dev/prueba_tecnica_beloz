@@ -94,6 +94,30 @@ class CloseAccountView(APIView):
         return Response(presenters.closure(result))
 
 
+class CardFreezeView(APIView):
+    """POST /cards/{id}/freeze — the card stops authorizing purchases."""
+
+    permission_classes = [IsCustomer]
+
+    @idempotent
+    def post(self, request, card_id):
+        _validated(EmptyRequest, request)
+        card = flows.freeze_card(owner_id=request.user.id, card_id=card_id)
+        return Response(presenters.card_status(card))
+
+
+class CardUnfreezeView(APIView):
+    """POST /cards/{id}/unfreeze — the card authorizes purchases again."""
+
+    permission_classes = [IsCustomer]
+
+    @idempotent
+    def post(self, request, card_id):
+        _validated(EmptyRequest, request)
+        card = flows.unfreeze_card(owner_id=request.user.id, card_id=card_id)
+        return Response(presenters.card_status(card))
+
+
 class AccountDetailView(APIView):
     """GET /accounts/{id} — status, limit, debt, available credit, deposit and card."""
 

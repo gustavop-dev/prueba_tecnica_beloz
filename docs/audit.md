@@ -8,7 +8,7 @@ Guarantees INV-6: every mutation is recorded with who, what, when and in which r
 
 | ID | Rule |
 | --- | --- |
-| AUD-1 | Every mutation writes one `AuditEvent`. Mutations: deposit created, confirmed and failed; purchase; payment; account closure; card freeze/unfreeze (add-on). |
+| AUD-1 | Every mutation writes one `AuditEvent`. Mutations: deposit created, confirmed and failed; purchase; payment; account closure; card freeze/unfreeze. |
 | AUD-2 | The audit event is written in the same database transaction as the mutation: both commit or neither does. |
 | AUD-3 | The audit log is append-only. A PostgreSQL trigger rejects `UPDATE`, `DELETE` and `TRUNCATE`, as for the ledger (LED-4). |
 | AUD-4 | Audit events never contain the PAN, tokens or signatures (SEC-CARD-3). The recording service rejects any state key containing `token`, `pan`, `card_number`, `signature`, `secret` or `password`, at any depth, and accepts only JSON-native values (no floats, no decimals). |
@@ -38,6 +38,7 @@ One event per mutated entity, inside the operation's transaction. Business rejec
 | Purchase | `credit_account.purchase_authorized` (customer) |
 | Repayment | `credit_account.repayment_applied` (customer) |
 | Closure | `credit_account.closed`, `deposit.settled`, `card.closed` (customer) |
+| Card freeze / unfreeze | `card.frozen` / `card.unfrozen` (customer) |
 
 States hold statuses and amounts; a card is identified only by its last 4 digits.
 
