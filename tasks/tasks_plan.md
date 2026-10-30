@@ -15,6 +15,7 @@
 | F5 | Documentation, architecture ADRs, Terraform | ✅ Merged (#7) |
 | Follow-up | Card freeze / unfreeze endpoints | ✅ Implemented (#9) |
 | Follow-up | Audit of rejected attempts | ✅ Implemented (#10) |
+| Follow-up | Manual, approved deploy pipeline (staging + production) | ✅ Implemented (#11), never run against AWS |
 
 ## Codebase counts
 
