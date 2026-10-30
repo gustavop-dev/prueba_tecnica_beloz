@@ -1,20 +1,33 @@
 #!/usr/bin/env bash
 # End-to-end API walkthrough against a running stack (`make up`), with an assertion per step.
 # open → confirm → purchase → rejected purchase → repay → IDOR check → close → rejected purchase.
-# Tokens default to the development values of .env.example.
+# Tokens and the webhook secret default to the development values of .env.example.
 set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:${APP_PORT:-8000}}"
 CUSTOMER_TOKEN="${CUSTOMER_TOKEN:-local-dev-customer-a-token}"
 OTHER_CUSTOMER_TOKEN="${OTHER_CUSTOMER_TOKEN:-local-dev-customer-b-token}"
-PROVIDER_TOKEN="${PROVIDER_TOKEN:-local-dev-provider-token}"
+WEBHOOK_SIGNING_SECRET="${WEBHOOK_SIGNING_SECRET:-local-dev-only-webhook-signing-secret-000}"
 
 STATUS=""
 BODY=""
 
-call() { # call <method> <path> <token> [json-body]
+signature() { # signature <raw body> — what the provider sends: t=<unix>,v1=HMAC-SHA256("<t>.<body>")
+  python3 -c '
+import hashlib, hmac, sys, time
+timestamp = int(time.time())
+digest = hmac.new(sys.argv[1].encode(), f"{timestamp}.{sys.argv[2]}".encode(), hashlib.sha256)
+print(f"t={timestamp},v1={digest.hexdigest()}")' "$WEBHOOK_SIGNING_SECRET" "$1"
+}
+
+call() { # call <method> <path> <token|webhook> [json-body]
   local method="$1" path="$2" token="$3" data="${4:-}"
-  local args=(-sS -X "$method" -H "Authorization: Bearer $token" -w '\n%{http_code}')
+  local args=(-sS -X "$method" -w '\n%{http_code}')
+  if [ "$token" = "webhook" ]; then
+    args+=(-H "X-Webhook-Signature: $(signature "$data")")
+  else
+    args+=(-H "Authorization: Bearer $token")
+  fi
   if [ "$method" = "POST" ]; then
     args+=(-H "Content-Type: application/json" -H "Idempotency-Key: $(python3 -c 'import uuid; print(uuid.uuid4())')" -d "${data:-{\}}")
   fi
@@ -60,7 +73,7 @@ DEPOSIT_ID="$(field deposit.id)"
 call GET "/accounts/$ACCOUNT_ID" "$CUSTOMER_TOKEN"
 expect "2. the account does not exist before confirmation" 404 error.code NOT_FOUND
 
-call POST /webhooks/payments "$PROVIDER_TOKEN" "{\"deposit_id\": \"$DEPOSIT_ID\", \"outcome\": \"succeeded\"}"
+call POST /webhooks/payments webhook "{\"deposit_id\": \"$DEPOSIT_ID\", \"outcome\": \"succeeded\"}"
 expect "3. provider confirms the deposit" 200 deposit.status CONFIRMED account_id "$ACCOUNT_ID"
 
 call GET "/accounts/$ACCOUNT_ID" "$CUSTOMER_TOKEN"

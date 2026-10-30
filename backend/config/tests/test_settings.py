@@ -36,7 +36,15 @@ def test_required_env_returns_the_configured_value(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "missing", ["DJANGO_SECRET_KEY", "AUTH_TOKENS", "POSTGRES_PASSWORD", "POSTGRES_HOST"]
+    "missing",
+    [
+        "DJANGO_SECRET_KEY",
+        "AUTH_TOKENS",
+        "WEBHOOK_SIGNING_SECRET",
+        "PAYMENT_PROVIDER_ID",
+        "POSTGRES_PASSWORD",
+        "POSTGRES_HOST",
+    ],
 )
 def test_settings_refuse_to_load_without_a_required_secret(missing):
     """Fails if Django can start with a required secret missing (SEC-SECRET-3)."""

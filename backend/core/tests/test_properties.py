@@ -22,7 +22,7 @@ from hypothesis.stateful import (
 
 from cards import services as cards
 from core.reconciliation import find_account_mismatches
-from core.tests.conftest import TOKENS, Api, open_account
+from core.tests.conftest import TOKENS, Api, open_account, provider_api
 
 DEPOSIT_MINOR = 10_000
 SETTLED = {"RELEASED", "PARTIALLY_APPLIED", "APPLIED"}
@@ -32,7 +32,7 @@ class AccountLifecycle(RuleBasedStateMachine):
     def __init__(self):
         super().__init__()
         self.customer = Api(TOKENS["customer_a"][2])
-        opened = open_account(self.customer, Api(TOKENS["provider"][2]), DEPOSIT_MINOR)
+        opened = open_account(self.customer, provider_api(), DEPOSIT_MINOR)
         self.account_id = opened.account_id
         self.card_id = opened.card_id
         self.debt = 0  # reference model of the outstanding debt

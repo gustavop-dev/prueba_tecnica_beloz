@@ -48,11 +48,11 @@ The provider and Acme share a secret. The provider signs each message; Acme reco
 
 | ID | Rule |
 | --- | --- |
-| SEC-HOOK-1 | Each request carries a timestamp and an HMAC-SHA256 signature in headers. The signature covers the timestamp **and** the raw body. |
+| SEC-HOOK-1 | Each request carries `X-Webhook-Signature: t=<unix seconds>,v1=<hex>`: an HMAC-SHA256, with the shared `WEBHOOK_SIGNING_SECRET` (at least 32 characters), over `"<t>.<raw body>"`. The signature covers the timestamp **and** the raw body. |
 | SEC-HOOK-2 | Acme recomputes the HMAC over the raw received bytes with the shared secret and compares in constant time. A mismatch is rejected with `401`. This proves who sent the message and that it was not altered. |
 | SEC-HOOK-3 | Messages whose timestamp is more than 5 minutes away from the server time are rejected. Because the timestamp is signed, an attacker who captures a valid webhook cannot resend it later or change its timestamp. |
 | SEC-HOOK-4 | Inside the 5-minute window a resent message is neutralized by idempotency (IDEM-13..15): it replays the stored response without applying the effect again. |
-| SEC-HOOK-5 | The webhook is authenticated by its signature, which identifies the principal as `payment_provider`. It does not need a bearer token. |
+| SEC-HOOK-5 | The webhook is authenticated **only** by its signature, which identifies the principal `PAYMENT_PROVIDER_ID` with role `payment_provider`. Bearer tokens are not accepted there: a request without a valid signature gets `401 INVALID_SIGNATURE`, a stale or future-dated one `401 SIGNATURE_EXPIRED`. |
 
 This is the standard scheme used by Stripe and other real providers.
 

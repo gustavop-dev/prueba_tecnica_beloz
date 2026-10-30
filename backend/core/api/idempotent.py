@@ -14,6 +14,7 @@ from rest_framework.response import Response
 
 from core.api.errors import ApiError, exception_handler
 from core.db import money_transaction
+from core.observability import context
 from idempotency import services as idempotency
 
 HEADER = "Idempotency-Key"
@@ -32,6 +33,7 @@ def idempotent(view_method):
     @functools.wraps(view_method)
     def wrapper(view, request, *args, **kwargs):
         key = _idempotency_key(request)
+        context.bind_idempotency_key(key)
         endpoint = f"{request.method} {request.path}"
         request_hash = idempotency.request_fingerprint(request.data)
         try:

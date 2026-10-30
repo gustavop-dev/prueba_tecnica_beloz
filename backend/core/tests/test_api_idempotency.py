@@ -16,6 +16,7 @@ from core.tests.conftest import (
     Api,
     error_code,
     open_account,
+    provider_api,
     purchase,
     report_deposit,
     request_opening,
@@ -196,7 +197,7 @@ def test_a_technical_failure_is_not_stored_so_the_same_key_can_retry(customer_a,
 @pytest.mark.django_db(transaction=True)
 def test_same_key_sent_concurrently_has_exactly_one_effect():
     """Fails if concurrent requests with one key both execute or answer differently (TEST-IDEM-3, IDEM-10)."""
-    customer, provider = Api(TOKENS["customer_a"][2]), Api(TOKENS["provider"][2])
+    customer, provider = Api(TOKENS["customer_a"][2]), provider_api()
     account = open_account(customer, provider)
     url = f"/cards/{account.card_id}/authorizations"
 
@@ -221,7 +222,7 @@ def test_lock_timeout_answers_503_and_the_same_key_succeeds_later(settings):
     """Fails if a request stuck behind a held lock waits forever or blocks its own retry (CON-9)."""
     settings.DB_LOCK_TIMEOUT_MS = 200
     customer = Api(TOKENS["customer_a"][2])
-    account = open_account(customer, Api(TOKENS["provider"][2]))
+    account = open_account(customer, provider_api())
     url = f"/cards/{account.card_id}/authorizations"
     locked, release = threading.Event(), threading.Event()
 

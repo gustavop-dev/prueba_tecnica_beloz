@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from accounts import services as accounts
 from cards import services as cards
 from collateral import services as collateral
+from core.auth.webhook import InvalidSignature, SignatureExpired
 from core.db import is_lock_timeout
 from core.money import InvalidAmount
 from idempotency import services as idempotency
@@ -68,6 +69,8 @@ DOMAIN_ERRORS = [
 ]
 
 DRF_ERRORS = [
+    (InvalidSignature, "INVALID_SIGNATURE", "The webhook signature is missing or does not match."),
+    (SignatureExpired, "SIGNATURE_EXPIRED", "The webhook timestamp is outside the allowed window."),
     (drf.NotAuthenticated, "UNAUTHENTICATED", "Authentication credentials are missing or invalid."),
     (
         drf.AuthenticationFailed,
@@ -116,13 +119,15 @@ def exception_handler(exc, context):
             details = exc.detail if isinstance(exc, drf.ValidationError) else None
             headers = {}
             if isinstance(exc, drf.NotAuthenticated | drf.AuthenticationFailed):
-                headers["WWW-Authenticate"] = "Bearer"
+                view = context.get("view")
+                scheme = view.get_authenticate_header(request) if view is not None else None
+                headers["WWW-Authenticate"] = scheme or "Bearer"
             return Response(
                 envelope(request, code=code, message=message, details=details),
                 status=exc.status_code,
                 headers=headers,
             )
-    logger.exception("Unhandled error", extra={"request_id": getattr(request, "request_id", None)})
+    logger.exception("request.unhandled_error")
     return Response(
         envelope(request, code="INTERNAL_ERROR", message="Unexpected error."), status=500
     )

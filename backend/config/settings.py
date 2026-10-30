@@ -14,6 +14,11 @@ ALLOWED_HOSTS = env.csv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 # Parsed and validated at startup by core.auth (fail closed).
 AUTH_TOKENS = env.required("AUTH_TOKENS")
 
+# Provider webhook (SEC-HOOK-1..5): shared HMAC-SHA256 secret and the provider's principal id.
+WEBHOOK_SIGNING_SECRET = env.required("WEBHOOK_SIGNING_SECRET")
+PAYMENT_PROVIDER_ID = env.required("PAYMENT_PROVIDER_ID")
+WEBHOOK_TOLERANCE_SECONDS = 300
+
 # Longest wait for a row lock before a money operation gives up with LOCK_TIMEOUT (CON-9).
 DB_LOCK_TIMEOUT_MS = int(env.optional("DB_LOCK_TIMEOUT_MS", "5000"))
 
@@ -68,4 +73,20 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "UNAUTHENTICATED_USER": None,
     "EXCEPTION_HANDLER": "core.api.errors.exception_handler",
+}
+
+# Structured JSON logs on stdout, one object per line with the request id (OBS-1..3).
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"json": {"()": "core.observability.json_logging.JsonFormatter"}},
+    "handlers": {
+        "stdout": {
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+            "formatter": "json",
+        }
+    },
+    "root": {"handlers": ["stdout"], "level": env.optional("LOG_LEVEL", "INFO")},
+    "loggers": {"django": {"handlers": ["stdout"], "level": "WARNING", "propagate": False}},
 }

@@ -47,3 +47,10 @@
 - `SET LOCAL lock_timeout` via `set_config(..., true)` lasts until the outermost transaction ends, so nested `money_transaction()` blocks are harmless.
 - Hypothesis inside one pytest-django test transaction: each example opens its own account, and invariants check that account only (`find_account_mismatches`) to keep the run linear.
 - The worktree guard rejects shell loops that pipe into tools like `sed`; repeated runs go through a small script file.
+
+## F4 insights
+
+- Gunicorn merges `logconfig_dict` over its defaults; the default root logger points at a `console` handler, so replacing `handlers` without redefining `root` makes gunicorn exit with "Unable to configure root logger". `make test` does not start gunicorn — only `make up` (and the clean-clone CI job) catches it.
+- Request correlation (request id, idempotency key) travels in a `ContextVar` set by the middleware and the idempotent wrapper; flows and the log formatter read it without changing every signature. Threads start with an empty context, so direct flow calls in tests audit with null request fields.
+- The webhook is authenticated by signature alone; DRF uses the view's `authenticate_header` (`Signature`) for the `WWW-Authenticate` value, so the error handler must ask the view instead of hardcoding `Bearer`.
+- Python 3.14 (PEP 758) lets ruff format `except (A, B):` as `except A, B:`.

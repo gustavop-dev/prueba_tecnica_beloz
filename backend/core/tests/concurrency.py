@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from django.db import connection
 
 from core import flows
+from core.tests.conftest import PROVIDER
 
 JOIN_TIMEOUT_SECONDS = 30
 
@@ -51,7 +52,7 @@ def run_concurrently(*operations: Callable[[], object]) -> list[Outcome]:
 
 def open_account(owner_id: uuid.UUID, deposit_minor: int) -> flows.ProviderReportResult:
     deposit = flows.request_account_opening(owner_id=owner_id, deposit_amount_minor=deposit_minor)
-    return flows.apply_provider_report(deposit_id=deposit.id, succeeded=True)
+    return flows.apply_provider_report(provider_id=PROVIDER, deposit_id=deposit.id, succeeded=True)
 
 
 def error_names(outcomes: list[Outcome]) -> list[str]:

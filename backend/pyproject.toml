@@ -32,7 +32,8 @@ select = ["E", "F", "W", "I", "B", "UP", "DJ", "S", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 # Test docstrings name the bug they catch and the spec ID, which can exceed the line length.
-"**/tests/**" = ["S101", "S603", "E501"]
+# Tests also hold fixture-only credentials (S105/S106).
+"**/tests/**" = ["S101", "S603", "E501", "S105", "S106"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
