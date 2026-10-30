@@ -37,6 +37,9 @@ Guarantees INV-4: no money operation is applied twice, no matter how many times 
 | IDEM-10 | The record is inserted as the **first** write of the transaction, before taking the credit account lock. A concurrent request with the same key blocks on the `UNIQUE` index until the first transaction finishes, then sees the committed record and replays it. Inserting the record at the end would let the second request run the whole operation before failing. |
 | IDEM-11 | Deterministic business rejections (e.g. purchase over the available credit, payment over the debt) are stored and replayed like successes. A retry gets the same answer instead of a different one because the balance changed in between. |
 | IDEM-12 | Records never expire within the scope of this exercise. |
+| IDEM-16 | Replayed responses carry the `Idempotent-Replayed: true` header. The body is equal as JSON data to the first answer; object key order may differ because it is stored as `jsonb`. |
+| IDEM-17 | Responses with status `>= 500` (including `LOCK_TIMEOUT`) are never stored: the whole transaction, claim included, rolls back, so the client retries with the same key. |
+| IDEM-18 | Completed records are immutable and records cannot be deleted; a deferred trigger rejects committing a record without its response (IDEM-7). |
 
 ## 4. Provider webhook
 

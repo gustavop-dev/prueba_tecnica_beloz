@@ -3,11 +3,10 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from core.db import money_transaction
-
 from accounts import services as accounts
 from cards import services as cards
 from collateral import services as collateral
+from core.db import money_transaction
 from core.money import COLLATERAL_RATIO_BPS, credit_limit_minor, parse_amount_minor
 from ledger import services as ledger
 

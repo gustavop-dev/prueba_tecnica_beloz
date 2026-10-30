@@ -91,9 +91,10 @@ def test_repayment_racing_purchase_matches_a_serial_order(round_):
         ("OK", "PaymentExceedsDebt"): 800,  # repayment first: 600 > 500 is rejected
     }
     assert outcome_names(outcomes) in serial_orders
-    assert accounts.get_account(opened.account.id).outstanding_minor == serial_orders[
-        outcome_names(outcomes)
-    ]
+    assert (
+        accounts.get_account(opened.account.id).outstanding_minor
+        == serial_orders[outcome_names(outcomes)]
+    )
     assert find_mismatches() == []
 
 

@@ -9,7 +9,7 @@
 | TEST-1 | Every mandatory test must fail if the behavior it protects breaks. A test that stays green with the behavior removed is not valid. |
 | TEST-2 | Tests run against real PostgreSQL, never SQLite. Locks, `CHECK` constraints and triggers only exist there. |
 | TEST-3 | Tests assert the **effect** (journal entries, cache, states), not only the HTTP status code. |
-| TEST-4 | Tools: `pytest`, `pytest-django`, `hypothesis`. |
+| TEST-4 | Tools: `pytest`, `pytest-django`, `hypothesis`. Hypothesis profiles: `dev` (30 examples, default) and `ci` (200 examples, 25 stateful steps), selected with `HYPOTHESIS_PROFILE`; CI uses `ci`. |
 
 ## 1.1 Test conventions
 

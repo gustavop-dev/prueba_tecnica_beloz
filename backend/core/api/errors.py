@@ -30,6 +30,7 @@ class ApiError(Exception):
         self.code = code
         self.message = message
 
+
 # (exception type, HTTP status, code, message). The first matching entry wins, so subclasses
 # (DepositNotPending ⊂ collateral.InvalidTransition) come before their parents.
 DOMAIN_ERRORS = [

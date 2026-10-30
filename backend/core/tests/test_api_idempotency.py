@@ -8,6 +8,8 @@ import pytest
 from django.db import connection, transaction
 
 from accounts import services as accounts
+from core.reconciliation import find_mismatches
+from core.tests.concurrency import run_concurrently
 from core.tests.conftest import (
     DEPOSIT_MINOR,
     TOKENS,
@@ -18,15 +20,15 @@ from core.tests.conftest import (
     report_deposit,
     request_opening,
 )
-from core.tests.concurrency import run_concurrently
-from core.reconciliation import find_mismatches
 from ledger import services as ledger
 
 KEY = "11111111-2222-4333-8444-555555555555"
 
 
 def _purchase_entries(account_id):
-    return [entry for entry in ledger.list_entries(uuid.UUID(account_id)) if entry.kind == "PURCHASE"]
+    return [
+        entry for entry in ledger.list_entries(uuid.UUID(account_id)) if entry.kind == "PURCHASE"
+    ]
 
 
 def _outstanding(account_id):
@@ -100,8 +102,12 @@ def test_a_key_is_scoped_to_its_concrete_endpoint(customer_a, provider):
     first = open_account(customer_a, provider)
     second = open_account(customer_a, provider)
 
-    one = customer_a.post(f"/cards/{first.card_id}/authorizations", {"amount_minor": 300}, HTTP_IDEMPOTENCY_KEY=KEY)
-    two = customer_a.post(f"/cards/{second.card_id}/authorizations", {"amount_minor": 300}, HTTP_IDEMPOTENCY_KEY=KEY)
+    one = customer_a.post(
+        f"/cards/{first.card_id}/authorizations", {"amount_minor": 300}, HTTP_IDEMPOTENCY_KEY=KEY
+    )
+    two = customer_a.post(
+        f"/cards/{second.card_id}/authorizations", {"amount_minor": 300}, HTTP_IDEMPOTENCY_KEY=KEY
+    )
 
     assert one.status_code == two.status_code == 201
     assert one.json()["authorization_id"] != two.json()["authorization_id"]
@@ -150,13 +156,21 @@ def test_webhook_resent_with_a_new_key_is_stopped_by_the_state_machine(customer_
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     ("headers", "code"),
-    [({}, "IDEMPOTENCY_KEY_MISSING"), ({"HTTP_IDEMPOTENCY_KEY": "not-a-uuid"}, "IDEMPOTENCY_KEY_INVALID")],
+    [
+        ({}, "IDEMPOTENCY_KEY_MISSING"),
+        ({"HTTP_IDEMPOTENCY_KEY": "not-a-uuid"}, "IDEMPOTENCY_KEY_INVALID"),
+    ],
     ids=["missing", "invalid"],
 )
-def test_post_without_a_valid_key_is_rejected_before_any_effect(customer_a, account_a, headers, code):
+def test_post_without_a_valid_key_is_rejected_before_any_effect(
+    customer_a, account_a, headers, code
+):
     """Fails if a POST without a valid Idempotency-Key runs (TEST-IDEM-6, IDEM-1, IDEM-2)."""
     response = customer_a.client.post(
-        f"/cards/{account_a.card_id}/authorizations", {"amount_minor": 100}, format="json", **headers
+        f"/cards/{account_a.card_id}/authorizations",
+        {"amount_minor": 100},
+        format="json",
+        **headers,
     )
 
     assert response.status_code == 400
@@ -187,7 +201,9 @@ def test_same_key_sent_concurrently_has_exactly_one_effect():
     url = f"/cards/{account.card_id}/authorizations"
 
     def send():
-        return Api(TOKENS["customer_a"][2]).post(url, {"amount_minor": 1_000}, HTTP_IDEMPOTENCY_KEY=KEY)
+        return Api(TOKENS["customer_a"][2]).post(
+            url, {"amount_minor": 1_000}, HTTP_IDEMPOTENCY_KEY=KEY
+        )
 
     outcomes = run_concurrently(*[send for _ in range(8)])
 

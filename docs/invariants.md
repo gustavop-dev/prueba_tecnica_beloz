@@ -27,4 +27,4 @@ These rules make INV-1 and INV-5 hold under concurrent requests. The rationale i
 | CON-6 | No operation locks two credit accounts: accounts are isolated (BR-OWN-2). |
 | CON-7 | Global ledger accounts (`cash`, `merchant_payable`) are never locked and keep no mutable balance column. Their balance is the sum of their lines, so every operation only inserts rows and they do not become a hot spot that serializes all accounts. |
 | CON-8 | The PostgreSQL `CHECK` (CACHE-3) is the last line of defense if any of these rules is broken. |
-| CON-9 | Transactions set a `lock_timeout` so a request never waits indefinitely. A timeout rolls back and returns a retryable error. |
+| CON-9 | Money transactions set `lock_timeout` (`DB_LOCK_TIMEOUT_MS`, default 5000 ms) so a request never waits indefinitely. A timeout rolls the whole operation back and returns `503 LOCK_TIMEOUT`; the same `Idempotency-Key` can be retried. |
