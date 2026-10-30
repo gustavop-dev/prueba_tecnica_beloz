@@ -10,6 +10,10 @@ SECRET_KEY = env.required("DJANGO_SECRET_KEY")
 DEBUG = env.flag("DJANGO_DEBUG")
 ALLOWED_HOSTS = env.csv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
+# Static API tokens: comma-separated `role:principal_id:token` (SEC-AUTH-1..3, SEC-SECRET-1).
+# Parsed and validated at startup by core.auth (fail closed).
+AUTH_TOKENS = env.required("AUTH_TOKENS")
+
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "rest_framework",
@@ -24,6 +28,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "core.observability.request_id.RequestIdMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
 ]
@@ -55,8 +60,9 @@ USE_TZ = True
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
-    # Authentication and permissions are provided by core.auth (F2).
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
-    "DEFAULT_PERMISSION_CLASSES": [],
+    "DEFAULT_AUTHENTICATION_CLASSES": ["core.auth.authentication.StaticTokenAuthentication"],
+    # Every view declares its role explicitly; without one, nothing is allowed.
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "UNAUTHENTICATED_USER": None,
+    "EXCEPTION_HANDLER": "core.api.errors.exception_handler",
 }

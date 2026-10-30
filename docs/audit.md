@@ -31,7 +31,7 @@ Guarantees INV-6: every mutation is recorded with who, what, when and in which r
 | ID | Rule |
 | --- | --- |
 | OBS-1 | Logs are structured JSON, one object per line. |
-| OBS-2 | Every log line carries a `request_id`. It is taken from the incoming `X-Request-ID` header when present and valid, otherwise generated as a UUID, and returned in the `X-Request-ID` response header. |
+| OBS-2 | Every log line carries a `request_id` (the middleware exists since F2 because the error envelope needs it; JSON logging arrives in F4). It is taken from the incoming `X-Request-ID` header when present and valid, otherwise generated as a UUID, and returned in the `X-Request-ID` response header. |
 | OBS-3 | Logs never contain the PAN, tokens or signatures (SEC-CARD-3). |
 
 ## 3. Health check

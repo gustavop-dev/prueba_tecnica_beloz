@@ -35,7 +35,9 @@ def test_required_env_returns_the_configured_value(monkeypatch):
     assert env.required("SOME_SECRET") == "s3cret"
 
 
-@pytest.mark.parametrize("missing", ["DJANGO_SECRET_KEY", "POSTGRES_PASSWORD", "POSTGRES_HOST"])
+@pytest.mark.parametrize(
+    "missing", ["DJANGO_SECRET_KEY", "AUTH_TOKENS", "POSTGRES_PASSWORD", "POSTGRES_HOST"]
+)
 def test_settings_refuse_to_load_without_a_required_secret(missing):
     """Fails if Django can start with a required secret missing (SEC-SECRET-3)."""
     child_env = {k: v for k, v in os.environ.items() if k != missing}

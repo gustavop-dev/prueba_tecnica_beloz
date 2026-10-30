@@ -13,7 +13,7 @@ Authentication is simulated, as the exercise allows, but it must behave like rea
 | ID | Rule |
 | --- | --- |
 | SEC-AUTH-1 | Every request carries a static token in the `Authorization: Bearer <token>` header. |
-| SEC-AUTH-2 | Tokens are configured through environment variables and never committed to the repository. |
+| SEC-AUTH-2 | Tokens are configured through the `AUTH_TOKENS` environment variable as comma-separated `role:principal_id:token` entries, and never committed to the repository. Tokens shorter than 16 characters, unknown roles, malformed ids and duplicated tokens stop the service at startup. |
 | SEC-AUTH-3 | The system resolves the token into a **principal**: who is calling (identity) and with which **role** (what they may do). |
 | SEC-AUTH-4 | A missing or unknown token is rejected with `401`. |
 | SEC-AUTH-5 | Tokens are compared in constant time (`hmac.compare_digest`) to avoid timing attacks. |

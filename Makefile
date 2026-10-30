@@ -1,7 +1,7 @@
 COMPOSE := docker compose
 RUN := $(COMPOSE) run --rm
 
-.PHONY: env up down test lint format migrate logs
+.PHONY: env up down test lint format walkthrough reconcile migrate logs
 
 env: ## Create .env from .env.example when it does not exist
 	@test -f .env || cp .env.example .env
@@ -24,6 +24,12 @@ format: env ## Apply ruff formatting and safe fixes to the files on the host
 	$(COMPOSE) build app
 	$(RUN) --no-deps --volume ./backend:/app --user "$$(id -u):$$(id -g)" app \
 		sh -c "ruff format --no-cache . && ruff check --fix --no-cache ."
+
+walkthrough: ## End-to-end API walkthrough against the running stack (run `make up` first)
+	bash scripts/api-walkthrough.sh
+
+reconcile: ## Verify the balance cache and deposits against the ledger
+	$(RUN) app python manage.py reconcile
 
 migrate: env ## Apply database migrations
 	$(RUN) app python manage.py migrate

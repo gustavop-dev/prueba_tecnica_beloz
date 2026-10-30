@@ -31,3 +31,11 @@
 - PostgreSQL refuses `TRUNCATE` while deferred trigger events are pending in the same transaction; run `SET CONSTRAINTS ALL IMMEDIATE` first.
 - `make format` must bind-mount `./backend` and run as the host user, or it only formats the copy inside the image.
 - Per-app row-lock tests use real threads and a second connection (`FOR UPDATE NOWAIT` → `55P03`); removing `select_for_update` makes them fail, which proves they test the lock.
+
+## F2 insights
+
+- DRF answers `403` instead of `401` for missing credentials unless the authentication class defines `authenticate_header`; it must return the scheme (`Bearer`).
+- URLs that match no route (e.g. a malformed UUID in the path) never reach DRF: `handler404` must return the JSON envelope too.
+- Ownership is checked before the transaction with an owner-scoped lookup; a foreign id raises the same `NotFound` as a missing one, and a test compares both error bodies field by field.
+- The account status is checked right after locking the account row, before locking the card, so a closed account answers `ACCOUNT_CLOSED` rather than `CARD_NOT_ACTIVE`.
+- Mutation check: removing one ownership check makes 3 IDOR tests fail.
