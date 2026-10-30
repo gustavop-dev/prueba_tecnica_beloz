@@ -15,6 +15,22 @@ ACTOR_ID = UUID("0b6f3c1e-2d4a-4f8b-9c7e-1a2b3c4d5e6f")
 REQUEST_ID = UUID("5d0e9a3b-7c21-4e6f-8a9b-0c1d2e3f4a5b")
 IDEMPOTENCY_KEY = UUID("9f8e7d6c-5b4a-4321-8fed-cba987654321")
 
+JSONB_COLUMNS = frozenset({"before_state", "after_state", "attempt"})
+
+# Column overrides that turn the default (valid, succeeded) raw event into a valid rejection.
+REJECTED_COLUMNS = {
+    "outcome": "rejected",
+    "action": "card.purchase",
+    "before_state": None,
+    "after_state": None,
+    "error_code": "INSUFFICIENT_CREDIT",
+    "attempt": '{"amount_minor": 5000}',
+}
+
+
+def _decode(value: str | None) -> object:
+    return None if value is None else json.loads(value)
+
 
 def make_context(**overrides) -> AuditContext:
     """An operator context inside an HTTP request with an idempotency key, unless overridden."""
@@ -52,28 +68,31 @@ def stored_event(raw_sql) -> Callable[[UUID], tuple | None]:
     """Read an event's persisted columns with raw SQL, or None when it does not exist.
 
     Returns `(occurred_at, actor_id, actor_role, action, entity_type, entity_id, before_state,
-    after_state, request_id, idempotency_key)` with the JSON states decoded (SQL NULL -> None).
+    after_state, request_id, idempotency_key, outcome, error_code, attempt)` with the JSON
+    columns decoded (SQL NULL -> None).
     """
 
     def read(event_id: UUID) -> tuple | None:
         rows = raw_sql(
             "SELECT occurred_at, actor_id, actor_role, action, entity_type, entity_id, "  # noqa: S608
-            "before_state::text, after_state::text, request_id, idempotency_key "
-            f"FROM {EVENT_TABLE} WHERE id = %s",
+            "before_state::text, after_state::text, request_id, idempotency_key, "
+            f"outcome, error_code, attempt::text FROM {EVENT_TABLE} WHERE id = %s",
             (event_id,),
         )
         if not rows:
             return None
         row = rows[0]
-        before = None if row[6] is None else json.loads(row[6])
-        return (*row[:6], before, json.loads(row[7]), *row[8:])
+        return (*row[:6], _decode(row[6]), _decode(row[7]), *row[8:12], _decode(row[12]))
 
     return read
 
 
 @pytest.fixture
 def insert_raw_event(raw_sql) -> Callable[..., UUID]:
-    """Insert a valid event with raw SQL (states as JSON text), overriding any column."""
+    """Insert a valid succeeded event with raw SQL (JSON columns as text), overriding any column.
+
+    `outcome` is always written explicitly: the column has no database default.
+    """
 
     def insert(**overrides) -> UUID:
         columns = {
@@ -88,10 +107,14 @@ def insert_raw_event(raw_sql) -> Callable[..., UUID]:
             "after_state": '{"status": "ACTIVE"}',
             "request_id": REQUEST_ID,
             "idempotency_key": IDEMPOTENCY_KEY,
+            "outcome": "succeeded",
+            "error_code": None,
+            "attempt": None,
         } | overrides
+        placeholders = ["%s::jsonb" if name in JSONB_COLUMNS else "%s" for name in columns]
         raw_sql(
             f"INSERT INTO {EVENT_TABLE} ({', '.join(columns)}) "  # noqa: S608
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s)",
+            f"VALUES ({', '.join(placeholders)})",
             tuple(columns.values()),
         )
         return columns["id"]
