@@ -27,4 +27,4 @@ The service implements every business rule in `docs/` with 851 tests against Pos
 
 No work is planned.
 
-Done after the plan: card freeze/unfreeze endpoints (#9); audit of rejected attempts (#10); manual, approved deploy pipeline (#11, ADR 0010) — validated but never run against AWS: connecting an account follows the one-time setup in `infra/terraform/README.md`.
+Done after the plan: card freeze/unfreeze endpoints (#9); audit of rejected attempts (#10); manual, approved deploy pipeline (#11, ADR 0010); ADRs in `docs/adr/`, deployment ADR 0011, README planning section and `PROMPTS.md` (#12) — validated but never run against AWS: connecting an account follows the one-time setup in `infra/terraform/README.md`.
